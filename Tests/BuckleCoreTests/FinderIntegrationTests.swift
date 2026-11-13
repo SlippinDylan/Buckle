@@ -93,7 +93,9 @@ import Testing
             }
         }
     }
+    #expect(old.language == nil)
     var updated = explicit
+    updated.language = "ja"
     updated.setEnabled(false, for: .terminal)
     #expect(!updated.airDropEnabled && !updated.terminalEnabled && !updated.copyPathEnabled && updated.moveEnabled)
     #expect(try decoder.decode(FinderConfiguration.self, from: JSONEncoder().encode(updated)) == updated)

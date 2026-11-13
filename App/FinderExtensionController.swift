@@ -13,8 +13,8 @@ final class FinderExtensionController {
     private(set) var state: State = .checking
     private(set) var configuration: FinderConfiguration?
     private(set) var isBusy = false
-    @ObservationIgnored private let runner = FinderPluginKit()
     @ObservationIgnored private let configurationStore: () throws -> FinderConfigurationStore
+    @ObservationIgnored private let language = Bundle.main.preferredLocalizations.first
 
     init(configurationStore: @escaping () throws -> FinderConfigurationStore = FinderConfigurationStore.standard) {
         self.configurationStore = configurationStore
@@ -31,7 +31,14 @@ final class FinderExtensionController {
         configuration = nil
         do {
             do {
-                configuration = try configurationStore().load()
+                let store = try configurationStore()
+                var loaded = try store.load()
+                // Use this process's resolved language; language changes take effect after restarting Buckle.
+                if loaded.language != language {
+                    loaded.language = language
+                    try store.save(loaded)
+                }
+                configuration = loaded
             } catch let error as DecodingError {
                 state = .invalidConfiguration(error.localizedDescription)
                 return
@@ -64,8 +71,9 @@ final class FinderExtensionController {
         isBusy = true
         defer { isBusy = false }
         do {
-            _ = try await runner.run(["-a", extensionURL.path])
-            _ = try await runner.run(["-e", "use", "-i", FinderIntegration.identifier])
+            _ = try await CommandRunner.run("/usr/bin/pluginkit", arguments: ["-a", extensionURL.path])
+            _ = try await CommandRunner.run(
+                "/usr/bin/pluginkit", arguments: ["-e", "use", "-i", FinderIntegration.identifier])
             state = try await readState()
         } catch { state = .failed(error.localizedDescription) }
     }
@@ -80,34 +88,13 @@ final class FinderExtensionController {
 
     private func readState() async throws -> State {
         guard FileManager.default.fileExists(atPath: extensionURL.path) else { return .missing }
-        let output = try await runner.run([
-            "-m", "-A", "-D", "-v", "-p", "com.apple.FinderSync", "-i", FinderIntegration.identifier,
-        ])
+        let output = try await CommandRunner.run(
+            "/usr/bin/pluginkit",
+            arguments: [
+                "-m", "-A", "-D", "-v", "-p", "com.apple.FinderSync", "-i", FinderIntegration.identifier,
+            ])
         let paths = try FinderRegistration.paths(in: output)
         guard paths.contains(extensionURL.standardizedFileURL.resolvingSymlinksInPath()) else { return .unregistered }
         return FIFinderSyncController.isExtensionEnabled ? .enabled : .disabled
-    }
-}
-
-private actor FinderPluginKit {
-    func run(_ arguments: [String]) throws -> String {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pluginkit")
-        process.arguments = arguments
-        process.standardOutput = output
-        process.standardError = output
-        try process.run()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let text = String(decoding: data, as: UTF8.self)
-        guard process.terminationStatus == 0 else {
-            throw NSError(
-                domain: "Buckle.FinderExtension", code: Int(process.terminationStatus),
-                userInfo: [
-                    NSLocalizedDescriptionKey: localized("finder.operation.failed") + "\n" + text
-                ])
-        }
-        return text
     }
 }

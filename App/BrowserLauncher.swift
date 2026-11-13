@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 
 struct Browser: Identifiable {
     let id: String
@@ -10,6 +11,9 @@ struct Browser: Identifiable {
 @MainActor
 enum BrowserLauncher {
     static func installed() -> [Browser] {
+        let signposter = OSSignposter(subsystem: "studio.slippindylan.Buckle", category: "Browser")
+        let interval = signposter.beginInterval("Browser Discovery")
+        defer { signposter.endInterval("Browser Discovery", interval) }
         let candidates: [(String, String, Bool)] = [
             ("com.google.Chrome", "Google Chrome", true),
             ("com.google.Chrome.beta", "Google Chrome Beta", true),
@@ -29,21 +33,18 @@ enum BrowserLauncher {
     }
 
     static func launch(_ browser: Browser, language: BrowserLanguage) async throws {
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: browser.id).isEmpty else {
+            throw NSError(
+                domain: "Buckle.Browser", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: localized("browser.running")])
+        }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         configuration.createsNewApplicationInstance = true
         if browser.chromium {
-            let profile = URL.applicationSupportDirectory.appending(
-                path: "Buckle/BrowserProfiles/\(browser.id)/\(language.rawValue)")
-            try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
-            configuration.arguments = language.arguments(profile: profile)
+            // Use the browser's own data directory, as the original launch script does.
+            configuration.arguments = language.arguments
         } else {
-            // Safari owns a single profile process; a running instance cannot change language.
-            guard NSRunningApplication.runningApplications(withBundleIdentifier: browser.id).isEmpty else {
-                throw NSError(
-                    domain: "Buckle.Browser", code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: localized("browser.safari.running")])
-            }
             configuration.arguments = ["-AppleLanguages", "(\(language.rawValue))"]
         }
         _ = try await NSWorkspace.shared.openApplication(at: browser.url, configuration: configuration)

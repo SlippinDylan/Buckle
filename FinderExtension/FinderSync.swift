@@ -36,9 +36,11 @@ final class BuckleFinderSync: FIFinderSync {
         }
         let menu = NSMenu()
         menu.autoenablesItems = false
+        var language: String?
         do {
             // Snapshot the context with each item; the action must not follow later selection changes.
             let configuration = try FinderConfigurationStore.standard().load()
+            language = configuration.language
             if case .items = context, configuration.airDropEnabled,
                 let service = NSSharingService(named: .sendViaAirDrop)
             {
@@ -46,12 +48,13 @@ final class BuckleFinderSync: FIFinderSync {
             }
             if configuration.terminalEnabled, let directory = try context.directory() {
                 try add(
-                    .terminal, files: [directory], title: localized("finder.terminal.title"),
+                    .terminal, files: [directory], title: localized("finder.terminal.title", language: language),
                     image: NSImage(systemSymbolName: "terminal", accessibilityDescription: nil), to: menu)
             }
             if configuration.copyPathEnabled {
                 let item = NSMenuItem(
-                    title: localized("finder.copyPath.title"), action: #selector(copyPath(_:)), keyEquivalent: "")
+                    title: localized("finder.copyPath.title", language: language), action: #selector(copyPath(_:)),
+                    keyEquivalent: "")
                 item.target = self
                 item.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
                 item.representedObject = context.files
@@ -59,7 +62,8 @@ final class BuckleFinderSync: FIFinderSync {
             }
             if configuration.moveEnabled, let directory = try context.directory() {
                 let item = NSMenuItem(
-                    title: localized("finder.move.title"), action: #selector(performAction(_:)), keyEquivalent: "")
+                    title: localized("finder.move.title", language: language), action: #selector(performAction(_:)),
+                    keyEquivalent: "")
                 item.target = self
                 item.image = NSImage(systemSymbolName: "folder.badge.arrow.forward", accessibilityDescription: nil)
                 item.isEnabled = NSPasteboard.general.canReadObject(
@@ -71,7 +75,8 @@ final class BuckleFinderSync: FIFinderSync {
             }
         } catch {
             logger.error("Could not create Finder menu: \(error.localizedDescription, privacy: .private)")
-            let item = NSMenuItem(title: localized("finder.menu.unavailable"), action: nil, keyEquivalent: "")
+            let item = NSMenuItem(
+                title: localized("finder.menu.unavailable", language: language), action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
         }
@@ -97,7 +102,23 @@ final class BuckleFinderSync: FIFinderSync {
         configuration.addsToRecentItems = false
         NSWorkspace.shared.open([request], withApplicationAt: host, configuration: configuration) {
             [logger] _, error in
-            if let error { logger.error("Could not open Buckle: \(error.localizedDescription, privacy: .private)") }
+            if let error {
+                logger.error("Could not open Buckle: \(error.localizedDescription, privacy: .private)")
+                Task { @MainActor in
+                    let language: String?
+                    do { language = try FinderConfigurationStore.standard().load().language } catch {
+                        logger.error("Could not read Finder language: \(error.localizedDescription, privacy: .private)")
+                        language = nil
+                    }
+                    let alert = NSAlert()
+                    alert.messageText = localized("finder.host.unavailable", language: language)
+                    alert.informativeText = localized("finder.host.unavailable.help", language: language)
+                    alert.alertStyle = .warning
+                    alert.window.level = .modalPanel
+                    alert.window.orderFrontRegardless()
+                    alert.runModal()
+                }
+            }
         }
     }
 

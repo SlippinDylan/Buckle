@@ -1,5 +1,3 @@
-import Foundation
-
 public enum BrowserLanguage: String, CaseIterable, Sendable {
     case english = "en"
     case simplifiedChinese = "zh-Hans"
@@ -31,10 +29,9 @@ public enum BrowserLanguage: String, CaseIterable, Sendable {
         }
     }
 
-    public func arguments(profile: URL) -> [String] {
+    public var arguments: [String] {
         [
-            "--user-data-dir=\(profile.path)", "--lang=\(chromiumLocale)", "--accept-lang=\(chromiumLocale)",
-            "--no-first-run", "-AppleLanguages",
+            "--lang=\(chromiumLocale)", "--accept-lang=\(chromiumLocale)", "-AppleLanguages",
             "(\(rawValue))",
         ]
     }

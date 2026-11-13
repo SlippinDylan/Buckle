@@ -11,22 +11,27 @@ struct FinderConfiguration: Codable, Equatable {
     var terminalEnabled: Bool
     var copyPathEnabled: Bool
     var moveEnabled: Bool
+    var language: String?
     static let initial = FinderConfiguration()
 
-    private enum CodingKeys: String, CodingKey { case airDropEnabled, terminalEnabled, copyPathEnabled, moveEnabled }
+    private enum CodingKeys: String, CodingKey {
+        case airDropEnabled, terminalEnabled, copyPathEnabled, moveEnabled, language
+    }
 
     init(
         airDropEnabled: Bool = false, terminalEnabled: Bool = false, copyPathEnabled: Bool = false,
-        moveEnabled: Bool = false
+        moveEnabled: Bool = false, language: String? = nil
     ) {
         self.airDropEnabled = airDropEnabled
         self.terminalEnabled = terminalEnabled
         self.copyPathEnabled = copyPathEnabled
         self.moveEnabled = moveEnabled
+        self.language = language
     }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        language = try values.decodeIfPresent(String.self, forKey: .language)
         airDropEnabled = try values.decode(Bool.self, forKey: .airDropEnabled)
         terminalEnabled =
             values.contains(.terminalEnabled)

@@ -1,13 +1,16 @@
-import Foundation
 import Testing
 
 @testable import BuckleCore
 
-@Test func browserLanguagesMatchAppAndSeparateProfiles() {
+@Test func browserLanguagesPreserveExistingBrowserData() {
     #expect(BrowserLanguage.allCases.map(\.rawValue) == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "de", "fr", "es"])
-    let arguments = BrowserLanguage.simplifiedChinese.arguments(
-        profile: URL(fileURLWithPath: "/tmp/profile with spaces"))
-    #expect(arguments.contains("--lang=zh-CN"))
-    #expect(arguments.contains("--user-data-dir=/tmp/profile with spaces"))
-    #expect(arguments.contains("(zh-Hans)"))
+    let locales = ["en", "zh-CN", "zh-TW", "ja", "ko", "de", "fr", "es"]
+    for (language, locale) in zip(BrowserLanguage.allCases, locales) {
+        #expect(
+            language.arguments == [
+                "--lang=\(locale)", "--accept-lang=\(locale)", "-AppleLanguages", "(\(language.rawValue))",
+            ])
+        #expect(!language.arguments.contains(where: { $0.hasPrefix("--user-data-dir") }))
+        #expect(!language.arguments.contains(where: { $0.hasPrefix("--profile-directory") }))
+    }
 }
