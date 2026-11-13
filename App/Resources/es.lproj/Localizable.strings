@@ -15,7 +15,6 @@
 "mouse.progress.help" = "Cerrando las aplicaciones en ejecución, actualizando los servicios de preferencias y permisos de macOS y volviendo a abrir las aplicaciones.";
 "mouse.success" = "Herramientas del ratón reiniciadas";
 "mouse.failed" = "Reinicio incompleto";
-"mouse.no.tools" = "Añade una aplicación instalada en Ajustes → Restablecimiento.";
 "mouse.stop.timeout" = "Una app no se ha cerrado. Ciérrala manualmente e inténtalo de nuevo.";
 "mouse.app.not.running" = "%@ no se ha iniciado.";
 "mouse.restore.failed" = "No se pudieron restaurar todas las apps:";
@@ -47,7 +46,7 @@
 "cancel" = "Cancelar";
 "memory.recovery.show" = "Mostrar registro de recuperación";
 "quit.recovery.title" = "La recuperación no ha terminado";
-"quit.recovery.help" = "No se pudieron restaurar las apps o el ajuste del sistema afectados. Reintenta la recuperación o cancela la salida. Si sales ahora, se perderá la información de recuperación pendiente de las utilidades del ratón. Algunas pueden seguir cerradas o cerrarse más tarde y tendrás que abrirlas manualmente. Se conservará el registro de recuperación del ajuste de memoria.";
+"quit.recovery.help" = "No se completó la restauración de las aplicaciones o del ajuste del sistema. Reintenta o cancela la salida. Si sales ahora, algunas aplicaciones podrían seguir cerradas. Los registros de recuperación se conservarán para el próximo inicio.";
 "quit.recovery.retry" = "Reintentar recuperación";
 "quit.recovery.quit" = "Salir de todos modos";
 "finder.terminal.title" = "Abrir en Terminal";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "No se pudo confirmar la ventana de memoria del sistema. Puede que esta versión de macOS no admita esta función.";
 "finder.host.unavailable" = "No se pudo abrir Buckle";
 "finder.host.unavailable.help" = "Abre Buckle desde Aplicaciones y vuelve a intentar esta acción de Finder.";
+"mouse.recovery.title" = "¿Restaurar las aplicaciones?";
+"mouse.recovery.help" = "Se interrumpió un restablecimiento anterior del ratón. ¿Quieres volver a abrir las aplicaciones que se cerraron? «Más tarde» conserva el registro de recuperación.";
+"mouse.recovery.later" = "Más tarde";
+"mouse.recovery.restore" = "Restaurar";

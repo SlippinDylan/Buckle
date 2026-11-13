@@ -70,7 +70,7 @@ enum NativeMenuCheck {
             precondition(menu.items.first { $0.identifier == item.identifier }?.state == .off)
         }
         let saved = try store.load()
-        precondition(saved == .initial)
+        precondition(saved == FinderConfiguration(language: Bundle.main.preferredLocalizations.first))
         invoke(localized("memory.open.system"), in: menu)
         invoke(localized("mouse.reset"), in: menu)
         invoke(localized("settings.title"), in: menu)
@@ -136,6 +136,9 @@ enum NativeMenuCheck {
         try store.save(.initial)
         let finder = FinderExtensionController(configurationStore: { store })
         await finder.refresh()
+        let beforeFailure = try store.load()
+        precondition(beforeFailure == FinderConfiguration(language: Bundle.main.preferredLocalizations.first))
+        precondition(finder.configuration == beforeFailure)
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
         defer {
             do { try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path) } catch
@@ -146,7 +149,7 @@ enum NativeMenuCheck {
             preconditionFailure("Saving to a read-only directory must throw")
         } catch CocoaError.fileWriteNoPermission {}
         let saved = try store.load()
-        precondition(saved == .initial && finder.configuration == saved)
+        precondition(saved == beforeFailure && finder.configuration == beforeFailure)
         if case .failed = finder.state {
             preconditionFailure("A configuration write error must not replace the extension registration state")
         }
@@ -157,14 +160,19 @@ enum NativeMenuCheck {
     @MainActor private static func verifySettingsRows(
         finder: FinderExtensionController
     ) async {
-        precondition(ApplicationSettingsViewController.Category.allCases == [.general, .permissions, .about])
+        precondition(
+            ApplicationSettingsViewController.Category.allCases == [.general, .mouseReset, .permissions, .about])
         let lifecycle = ApplicationLifecycle()
         let operations = MenuCheckPanelOperations()
         let panel = SystemMemoryPanel(operations: operations, lifecycle: lifecycle)
         await panel.refreshPermissions()
+        let suite = "Buckle.MouseResetMenuTests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suite) else { preconditionFailure("Missing test defaults") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = MouseResetPreferences(defaults: defaults)
         let settings = ApplicationSettingsViewController(
             memoryPanel: panel, finder: finder,
-            updates: ApplicationUpdateController(), lifecycle: lifecycle)
+            updates: ApplicationUpdateController(), lifecycle: lifecycle, mouseResetPreferences: preferences)
         settings.view.setFrameSize(NSSize(width: 400, height: 450))
         settings.view.layoutSubtreeIfNeeded()
         let generalButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
@@ -188,6 +196,22 @@ enum NativeMenuCheck {
             precondition(
                 abs(control.frame.maxX - row.bounds.maxX) < 0.5, "Settings switches must align to the trailing edge")
         }
+        settings.selectCategory(.mouseReset)
+        let mouseButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
+        precondition(mouseButtons.contains { $0.identifier?.rawValue == "mouse-reset.add" })
+        let removals = mouseButtons.filter { $0.action == NSSelectorFromString("removeMouseResetApplication:") }
+        precondition(removals.count == MouseResetTool.defaults.count)
+        guard let remove = removals.first else { preconditionFailure("Missing application removal") }
+        remove.performClick(nil)
+        do {
+            let saved = try preferences.load()
+            precondition(saved == Array(MouseResetTool.defaults.dropFirst()))
+        } catch { preconditionFailure("\(error)") }
+        precondition(lifecycle.begin(.mouseReset))
+        settings.refresh()
+        let busyButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
+        precondition(busyButtons.allSatisfy { !$0.isEnabled })
+        lifecycle.end(.mouseReset)
         settings.selectCategory(.permissions)
         let permissionButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
         precondition(!permissionButtons.contains { $0.action == NSSelectorFromString("checkPermissions") })

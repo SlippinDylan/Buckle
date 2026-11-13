@@ -15,7 +15,6 @@
 "mouse.progress.help" = "Quitting running applications, refreshing macOS preference and permission services, then reopening the applications.";
 "mouse.success" = "Mouse utilities restarted";
 "mouse.failed" = "Restart did not complete";
-"mouse.no.tools" = "Add an installed application in Settings → Mouse Reset.";
 "mouse.stop.timeout" = "An app did not quit. Close it manually and try again.";
 "mouse.app.not.running" = "%@ did not start.";
 "mouse.restore.failed" = "Could not restore all apps:";
@@ -47,7 +46,7 @@
 "cancel" = "Cancel";
 "memory.recovery.show" = "Show Recovery Record";
 "quit.recovery.title" = "Recovery Is Not Complete";
-"quit.recovery.help" = "Buckle could not finish restoring the affected apps or system setting. Retry recovery or cancel quitting. If you quit now, any pending mouse utility recovery will be lost; some utilities may stay closed or quit later and need to be reopened manually. The memory setting recovery file will be kept.";
+"quit.recovery.help" = "Buckle could not finish restoring the affected apps or system setting. Retry recovery or cancel quitting. If you quit now, some apps may stay closed; recovery records will be kept for the next launch.";
 "quit.recovery.retry" = "Retry Recovery";
 "quit.recovery.quit" = "Quit Anyway";
 "finder.terminal.title" = "Open in Terminal";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "The system memory window could not be confirmed. This macOS version may not support this feature.";
 "finder.host.unavailable" = "Could Not Open Buckle";
 "finder.host.unavailable.help" = "Open Buckle from Applications, then try this Finder action again.";
+"mouse.recovery.title" = "Restore Applications?";
+"mouse.recovery.help" = "A previous mouse reset was interrupted. Reopen the applications it closed? Choosing Later keeps the recovery record.";
+"mouse.recovery.later" = "Later";
+"mouse.recovery.restore" = "Restore";

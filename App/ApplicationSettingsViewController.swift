@@ -2,15 +2,17 @@ import AppKit
 import BucklePermissionSupport
 import Observation
 import ServiceManagement
+import UniformTypeIdentifiers
 
 @MainActor
 final class ApplicationSettingsViewController: NSViewController {
     enum Category: Int, CaseIterable {
-        case general, permissions, about
+        case general, mouseReset, permissions, about
 
         var title: String {
             switch self {
             case .general: localized("settings.general")
+            case .mouseReset: localized("mouse.settings.title")
             case .permissions: localized("settings.permissions")
             case .about: localized("settings.about")
             }
@@ -19,6 +21,7 @@ final class ApplicationSettingsViewController: NSViewController {
         var symbol: String {
             switch self {
             case .general: "gearshape"
+            case .mouseReset: "computermouse"
             case .permissions: "hand.raised"
             case .about: "info.circle"
             }
@@ -33,6 +36,7 @@ final class ApplicationSettingsViewController: NSViewController {
     private let memoryPanel: SystemMemoryPanel
     private let finder: FinderExtensionController
     private let languagePreferences: ApplicationLanguagePreferences
+    private let mouseResetPreferences: MouseResetPreferences
     private let updates: ApplicationUpdateController
     private let permissionGuidance: PermissionGuidance
     private let contentStack = NSStackView()
@@ -43,13 +47,15 @@ final class ApplicationSettingsViewController: NSViewController {
         memoryPanel: SystemMemoryPanel, finder: FinderExtensionController,
         updates: ApplicationUpdateController, lifecycle: ApplicationLifecycle,
         languagePreferences: ApplicationLanguagePreferences = ApplicationLanguagePreferences(),
-        permissionGuidance: PermissionGuidance = PermissionGuidance()
+        permissionGuidance: PermissionGuidance = PermissionGuidance(),
+        mouseResetPreferences: MouseResetPreferences = MouseResetPreferences()
     ) {
         self.lifecycle = lifecycle
         self.memoryPanel = memoryPanel
         self.finder = finder
         self.updates = updates
         self.languagePreferences = languagePreferences
+        self.mouseResetPreferences = mouseResetPreferences
         self.permissionGuidance = permissionGuidance
         super.init(nibName: nil, bundle: nil)
     }
@@ -110,6 +116,7 @@ final class ApplicationSettingsViewController: NSViewController {
     private func observeState() {
         withObservationTracking {
             _ = lifecycle.terminationRequested
+            _ = lifecycle.isActive(.mouseReset)
             _ = memoryPanel.permissionStatus
             _ = memoryPanel.error
             _ = memoryPanel.isOpening
@@ -136,9 +143,116 @@ final class ApplicationSettingsViewController: NSViewController {
         }
         switch selectedCategory {
         case .general: showGeneral()
+        case .mouseReset: showMouseReset()
         case .permissions: showPermissions()
         case .about: showAbout()
         }
+    }
+
+    private func showMouseReset() {
+        addDescription(localized("mouse.settings.help"))
+        do {
+            let tools = try mouseResetPreferences.load()
+            let editable = !lifecycle.terminationRequested && !lifecycle.isActive(.mouseReset)
+            let add = NSButton(
+                title: localized("mouse.settings.add"), target: self, action: #selector(addMouseResetApplications))
+            add.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+            add.imagePosition = .imageLeading
+            add.bezelStyle = .rounded
+            add.bezelColor = .controlAccentColor
+            add.isEnabled = editable
+            add.identifier = NSUserInterfaceItemIdentifier("mouse-reset.add")
+            let rows: [NSView] =
+                tools.isEmpty
+                ? [description(localized("mouse.settings.empty"))]
+                : tools.map { mouseResetRow($0, editable: editable) }
+            addSection(localized("mouse.settings.applications"), rows: rows, accessory: add)
+        } catch {
+            addDescription(error.localizedDescription)
+        }
+    }
+
+    private func mouseResetRow(_ tool: MouseResetTool, editable: Bool) -> NSView {
+        let applicationURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: tool.identifier)
+        let image = NSImageView()
+        if let applicationURL {
+            image.image = NSWorkspace.shared.icon(forFile: applicationURL.path)
+        } else {
+            image.image = NSImage(systemSymbolName: "app", accessibilityDescription: nil)
+        }
+        image.imageScaling = .scaleProportionallyUpOrDown
+        image.setAccessibilityElement(false)
+        image.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        image.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        let name = NSTextField(labelWithString: tool.name)
+        name.lineBreakMode = .byTruncatingMiddle
+        name.toolTip = applicationURL?.path ?? tool.identifier
+        name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let remove = NSButton()
+        remove.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        remove.imagePosition = .imageOnly
+        remove.isBordered = false
+        remove.contentTintColor = .systemRed
+        remove.target = self
+        remove.action = #selector(removeMouseResetApplication(_:))
+        remove.identifier = NSUserInterfaceItemIdentifier(tool.identifier)
+        remove.toolTip = localizedFormat("mouse.settings.remove", tool.name)
+        remove.setAccessibilityLabel(remove.toolTip)
+        remove.isEnabled = editable
+        remove.widthAnchor.constraint(equalToConstant: 28).isActive = true
+        remove.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        let row = NSStackView(views: [image, name, spacer, remove])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 8
+        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        return row
+    }
+
+    @objc private func addMouseResetApplications() {
+        guard !lifecycle.terminationRequested, !lifecycle.isActive(.mouseReset), let window = view.window else {
+            return
+        }
+        let picker = NSOpenPanel()
+        picker.allowedContentTypes = [.applicationBundle]
+        picker.canChooseDirectories = false
+        picker.canChooseFiles = true
+        picker.allowsMultipleSelection = true
+        picker.directoryURL = URL(fileURLWithPath: "/Applications")
+        picker.prompt = localized("mouse.settings.add")
+        picker.beginSheetModal(for: window) { [weak self] response in
+            guard let self, response == .OK,
+                !self.lifecycle.terminationRequested, !self.lifecycle.isActive(.mouseReset)
+            else { return }
+            do {
+                let selected: [MouseResetTool]
+                do { selected = try picker.urls.map { try MouseResetTool(applicationURL: $0) } } catch {
+                    throw CocoaError(
+                        .fileReadCorruptFile,
+                        userInfo: [NSLocalizedDescriptionKey: localized("mouse.settings.invalid")])
+                }
+                var tools = try self.mouseResetPreferences.load()
+                for tool in selected where !tools.contains(where: { $0.identifier == tool.identifier }) {
+                    tools.append(tool)
+                }
+                try self.mouseResetPreferences.save(tools)
+                self.refresh()
+            } catch { self.present(error) }
+        }
+    }
+
+    @objc private func removeMouseResetApplication(_ sender: NSButton) {
+        guard !lifecycle.terminationRequested, !lifecycle.isActive(.mouseReset), let identifier = sender.identifier
+        else {
+            return
+        }
+        do {
+            let tools = try mouseResetPreferences.load().filter { $0.identifier != identifier.rawValue }
+            try mouseResetPreferences.save(tools)
+            refresh()
+        } catch { present(error) }
     }
 
     private func showGeneral() {
@@ -321,12 +435,21 @@ final class ApplicationSettingsViewController: NSViewController {
         ])
     }
 
-    private func addSection(_ title: String, rows: [NSView]) {
+    private func addSection(_ title: String, rows: [NSView], accessory: NSView? = nil) {
         let label = NSTextField(labelWithString: title)
         label.font = .systemFont(ofSize: 13, weight: .semibold)
         let header = NSView()
         label.translatesAutoresizingMaskIntoConstraints = false
         header.addSubview(label)
+        if let accessory {
+            accessory.translatesAutoresizingMaskIntoConstraints = false
+            header.addSubview(accessory)
+            NSLayoutConstraint.activate([
+                accessory.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+                accessory.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+                label.trailingAnchor.constraint(lessThanOrEqualTo: accessory.leadingAnchor, constant: -8),
+            ])
+        }
         NSLayoutConstraint.activate([
             label.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 10),
             label.trailingAnchor.constraint(lessThanOrEqualTo: header.trailingAnchor, constant: -10),

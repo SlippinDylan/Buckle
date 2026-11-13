@@ -15,7 +15,6 @@
 "mouse.progress.help" = "正在退出已运行的应用、刷新 macOS 偏好与权限服务，然后统一恢复应用。";
 "mouse.success" = "鼠标相关服务已重启";
 "mouse.failed" = "重启未完成";
-"mouse.no.tools" = "请在「设置 → 鼠标重置」中添加已安装的应用。";
 "mouse.stop.timeout" = "有应用未能退出，请手动关闭后重试。";
 "mouse.app.not.running" = "%@ 未能启动。";
 "mouse.restore.failed" = "未能恢复所有应用：";
@@ -47,7 +46,7 @@
 "cancel" = "取消";
 "memory.recovery.show" = "查看恢复记录";
 "quit.recovery.title" = "恢复尚未完成";
-"quit.recovery.help" = "Buckle 未能完成相关应用或系统设置的恢复。你可以重试恢复或取消退出。如果仍有鼠标工具未恢复，继续退出会丢失其待恢复信息；部分工具可能保持关闭或稍后退出，需要手动重新打开。内存设置恢复记录会保留。";
+"quit.recovery.help" = "Buckle 未能完成应用或系统设置的恢复。你可以重试恢复或取消退出。现在退出可能让部分应用保持关闭；恢复记录会保留到下次启动。";
 "quit.recovery.retry" = "重试恢复";
 "quit.recovery.quit" = "仍然退出";
 "finder.terminal.title" = "在终端中打开";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "未能确认系统内存窗口已出现。此 macOS 版本可能不支持该功能。";
 "finder.host.unavailable" = "无法打开 Buckle";
 "finder.host.unavailable.help" = "请从“应用程序”打开 Buckle，然后重试此访达操作。";
+"mouse.recovery.title" = "恢复应用？";
+"mouse.recovery.help" = "上次鼠标重置被中断。是否重新打开当时关闭的应用？选择“稍后”会保留恢复记录。";
+"mouse.recovery.later" = "稍后";
+"mouse.recovery.restore" = "恢复";

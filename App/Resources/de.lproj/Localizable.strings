@@ -15,7 +15,6 @@
 "mouse.progress.help" = "Laufende Programme werden beendet, die macOS-Einstellungs- und Berechtigungsdienste aktualisiert und die Programme wieder geöffnet.";
 "mouse.success" = "Mauswerkzeuge neu gestartet";
 "mouse.failed" = "Neustart nicht abgeschlossen";
-"mouse.no.tools" = "Füge unter Einstellungen → Maus-Reset ein installiertes Programm hinzu.";
 "mouse.stop.timeout" = "Eine App wurde nicht beendet. Schließen Sie sie manuell und versuchen Sie es erneut.";
 "mouse.app.not.running" = "%@ wurde nicht gestartet.";
 "mouse.restore.failed" = "Nicht alle Apps wiederhergestellt:";
@@ -47,7 +46,7 @@
 "cancel" = "Abbrechen";
 "memory.recovery.show" = "Wiederherstellungseintrag anzeigen";
 "quit.recovery.title" = "Wiederherstellung nicht abgeschlossen";
-"quit.recovery.help" = "Betroffene Apps oder Systemeinstellungen konnten nicht wiederhergestellt werden. Versuche es erneut oder brich das Beenden ab. Beim Beenden gehen ausstehende Wiederherstellungsdaten für Mauswerkzeuge verloren. Einige Werkzeuge bleiben möglicherweise geschlossen oder beenden sich später und müssen manuell geöffnet werden. Der Wiederherstellungseintrag für die Speichereinstellung bleibt erhalten.";
+"quit.recovery.help" = "Apps oder Systemeinstellungen konnten nicht vollständig wiederhergestellt werden. Versuche es erneut oder brich das Beenden ab. Beim Beenden können einige Apps geschlossen bleiben. Die Wiederherstellungseinträge bleiben für den nächsten Start erhalten.";
 "quit.recovery.retry" = "Wiederherstellung wiederholen";
 "quit.recovery.quit" = "Trotzdem beenden";
 "finder.terminal.title" = "Im Terminal öffnen";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "Das Systemspeicherfenster konnte nicht bestätigt werden. Diese macOS-Version unterstützt die Funktion möglicherweise nicht.";
 "finder.host.unavailable" = "Buckle konnte nicht geöffnet werden";
 "finder.host.unavailable.help" = "Öffne Buckle im Ordner „Programme“ und versuche diese Finder-Aktion erneut.";
+"mouse.recovery.title" = "Apps wiederherstellen?";
+"mouse.recovery.help" = "Ein vorheriges Zurücksetzen wurde unterbrochen. Sollen die dabei geschlossenen Apps wieder geöffnet werden? „Später“ behält den Wiederherstellungseintrag.";
+"mouse.recovery.later" = "Später";
+"mouse.recovery.restore" = "Wiederherstellen";

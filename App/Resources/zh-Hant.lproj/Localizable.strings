@@ -15,7 +15,6 @@
 "mouse.progress.help" = "正在結束已執行的應用程式、更新 macOS 偏好與權限服務，然後統一還原應用程式。";
 "mouse.success" = "滑鼠相關服務已重新啟動";
 "mouse.failed" = "重新啟動未完成";
-"mouse.no.tools" = "請在「設定 → 滑鼠重置」中加入已安裝的應用程式。";
 "mouse.stop.timeout" = "有 App 未能結束，請手動關閉後重試。";
 "mouse.app.not.running" = "%@ 未能啟動。";
 "mouse.restore.failed" = "未能恢復所有 App：";
@@ -47,7 +46,7 @@
 "cancel" = "取消";
 "memory.recovery.show" = "查看復原記錄";
 "quit.recovery.title" = "復原尚未完成";
-"quit.recovery.help" = "Buckle 未能完成相關應用程式或系統設定的復原。你可以重試復原或取消結束。如果仍有滑鼠工具未復原，繼續結束會遺失其待復原資訊；部分工具可能保持關閉或稍後結束，需要手動重新開啟。記憶體設定復原記錄會保留。";
+"quit.recovery.help" = "Buckle 未能完成應用程式或系統設定的恢復。你可以重試恢復或取消結束。現在結束可能讓部分應用程式保持關閉；恢復記錄會保留到下次啟動。";
 "quit.recovery.retry" = "重試復原";
 "quit.recovery.quit" = "仍要結束";
 "finder.terminal.title" = "在終端機中打開";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "未能確認系統記憶體視窗已出現。此 macOS 版本可能不支援此功能。";
 "finder.host.unavailable" = "無法開啟 Buckle";
 "finder.host.unavailable.help" = "請從「應用程式」開啟 Buckle，再重試此 Finder 操作。";
+"mouse.recovery.title" = "恢復應用程式？";
+"mouse.recovery.help" = "上次滑鼠重置遭到中斷。是否重新開啟當時關閉的應用程式？選擇「稍後」會保留恢復記錄。";
+"mouse.recovery.later" = "稍後";
+"mouse.recovery.restore" = "恢復";

@@ -5,6 +5,26 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"8E003F43B26D4B35A18F59D3" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/CommandRunner.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"8E003F43B26D4B35A18F59D4" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8E003F43B26D4B35A18F59D3";
+		};
+		"8E003F43B26D4B35A18F59D1" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/Core/MouseResetConfiguration.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"8E003F43B26D4B35A18F59D2" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8E003F43B26D4B35A18F59D1";
+		};
 		"E19E492FBF374880B9365CA7" = {
 			"isa" = "PBXFileReference";
 			"path" = "App/Resources/MenuBarIconTemplate@2x.png";
@@ -156,6 +176,8 @@
 				"F38081ECB7709EE6FE878D4E",
 				"45540981A6123C3EEE48F5A5",
 				"D5D38EAF0BE54D6A82AF4271",
+				"8E003F43B26D4B35A18F59D1",
+				"8E003F43B26D4B35A18F59D3",
 				"DD19C82C35F5D3884BB73D0A",
 				"5D9F2BCADD38DD85A1079E6A",
 				"FD5C36D35E0D71E61860960F",
@@ -795,6 +817,8 @@
 				"C59E063FE8DC46A3AA7E7B64",
 				"37732BF3DC9F668BD6EDF029",
 				"F32219DA93134757BA760514",
+				"8E003F43B26D4B35A18F59D2",
+				"8E003F43B26D4B35A18F59D4",
 				"0491B1FC749024C9D5AA3FE2",
 				"752E666A255A8EAE5389BDC3",
 				"2AF1BDA34DEECAB80D3D16B1",

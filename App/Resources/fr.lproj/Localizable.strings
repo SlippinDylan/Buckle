@@ -15,7 +15,6 @@
 "mouse.progress.help" = "Fermeture des applications actives, actualisation des services de préférences et d’autorisations de macOS, puis réouverture des applications.";
 "mouse.success" = "Utilitaires de souris redémarrés";
 "mouse.failed" = "Redémarrage incomplet";
-"mouse.no.tools" = "Ajoutez une application installée dans Réglages → Réinitialisation.";
 "mouse.stop.timeout" = "Une app ne s’est pas arrêtée. Fermez-la manuellement et réessayez.";
 "mouse.app.not.running" = "%@ n’a pas démarré.";
 "mouse.restore.failed" = "Certaines apps n’ont pas pu être restaurées :";
@@ -47,7 +46,7 @@
 "cancel" = "Annuler";
 "memory.recovery.show" = "Afficher le fichier de restauration";
 "quit.recovery.title" = "La restauration est incomplète";
-"quit.recovery.help" = "Les apps ou le réglage système concernés n’ont pas pu être rétablis. Réessayez ou annulez la fermeture. Si vous quittez maintenant, les informations de restauration des utilitaires de souris seront perdues. Certains peuvent rester fermés ou se fermer plus tard et devront être rouverts manuellement. Le fichier de restauration du réglage mémoire sera conservé.";
+"quit.recovery.help" = "La restauration des applications ou du réglage système est incomplète. Réessayez ou annulez la fermeture. Certaines applications peuvent rester fermées si vous quittez maintenant. Les informations de restauration seront conservées pour le prochain lancement.";
 "quit.recovery.retry" = "Réessayer la restauration";
 "quit.recovery.quit" = "Quitter quand même";
 "finder.terminal.title" = "Ouvrir dans Terminal";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "L’affichage de la fenêtre mémoire du système n’a pas pu être confirmé. Cette version de macOS peut ne pas prendre en charge cette fonction.";
 "finder.host.unavailable" = "Impossible d’ouvrir Buckle";
 "finder.host.unavailable.help" = "Ouvrez Buckle depuis Applications, puis réessayez cette action Finder.";
+"mouse.recovery.title" = "Restaurer les applications ?";
+"mouse.recovery.help" = "Une précédente réinitialisation de la souris a été interrompue. Rouvrir les applications fermées ? « Plus tard » conserve les informations de restauration.";
+"mouse.recovery.later" = "Plus tard";
+"mouse.recovery.restore" = "Restaurer";

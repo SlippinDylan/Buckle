@@ -1,5 +1,6 @@
 import AppKit
 import BucklePermissionSupport
+import OSLog
 import SwiftUI
 
 @main
@@ -35,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var ownsApplicationState = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let signposter = OSSignposter(subsystem: "studio.slippindylan.Buckle", category: "Lifecycle")
+        let interval = signposter.beginInterval("Launch Setup")
+        defer { signposter.endInterval("Launch Setup", interval) }
         if let identifier = Bundle.main.bundleIdentifier,
             NSRunningApplication.runningApplications(withBundleIdentifier: identifier).contains(where: {
                 $0.processIdentifier != ProcessInfo.processInfo.processIdentifier
@@ -55,6 +59,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.statusMenu.updateStatusImage()
             if !self.mouseReset.isPresented { self.mouseResetWindow?.close() }
+        }
+        Task { @MainActor in
+            do {
+                try await mouseReset.recoverInterruptedReset {
+                    NSApp.activate()
+                    let alert = NSAlert()
+                    alert.messageText = localized("mouse.recovery.title")
+                    alert.informativeText = localized("mouse.recovery.help")
+                    alert.addButton(withTitle: localized("mouse.recovery.later"))
+                    alert.addButton(withTitle: localized("mouse.recovery.restore"))
+                    return alert.runModal() == .alertSecondButtonReturn
+                }
+            } catch {
+                guard lifecycle.shouldPresentUserActionError(error) else { return }
+                NSApp.activate()
+                NSAlert(error: error).runModal()
+            }
         }
         Task { await finderExtension.refresh() }
         Task { await systemMemoryPanel.refreshPermissions() }

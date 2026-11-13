@@ -15,7 +15,6 @@
 "mouse.progress.help" = "실행 중인 앱을 종료하고 macOS 환경설정 및 권한 서비스를 새로 고친 다음 앱을 다시 엽니다.";
 "mouse.success" = "마우스 관련 서비스가 재시작되었습니다";
 "mouse.failed" = "재시작이 완료되지 않았습니다";
-"mouse.no.tools" = "설정 → 마우스 재설정에서 설치된 앱을 추가하세요.";
 "mouse.stop.timeout" = "앱이 종료되지 않았습니다. 직접 종료한 후 다시 시도하세요.";
 "mouse.app.not.running" = "%@이(가) 시작되지 않았습니다.";
 "mouse.restore.failed" = "모든 앱을 복원할 수 없습니다:";
@@ -47,7 +46,7 @@
 "cancel" = "취소";
 "memory.recovery.show" = "복구 기록 보기";
 "quit.recovery.title" = "복구가 완료되지 않았습니다";
-"quit.recovery.help" = "관련 앱 또는 시스템 설정을 복구하지 못했습니다. 복구를 다시 시도하거나 종료를 취소할 수 있습니다. 지금 종료하면 대기 중인 마우스 도구 복구 정보가 사라집니다. 일부 도구는 닫힌 상태로 남거나 나중에 종료될 수 있으므로 직접 다시 열어야 합니다. 메모리 설정 복구 파일은 보존됩니다.";
+"quit.recovery.help" = "앱 또는 시스템 설정 복원이 완료되지 않았습니다. 복원을 다시 시도하거나 종료를 취소하세요. 지금 종료하면 일부 앱이 닫힌 상태로 남을 수 있습니다. 복원 기록은 다음 실행까지 유지됩니다.";
 "quit.recovery.retry" = "복구 다시 시도";
 "quit.recovery.quit" = "그래도 종료";
 "finder.terminal.title" = "터미널에서 열기";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "시스템 메모리 윈도우가 표시되었는지 확인하지 못했습니다. 이 macOS 버전에서 지원하지 않을 수 있습니다.";
 "finder.host.unavailable" = "Buckle을 열 수 없습니다";
 "finder.host.unavailable.help" = "응용 프로그램에서 Buckle을 연 다음 이 Finder 동작을 다시 시도하세요.";
+"mouse.recovery.title" = "앱을 복원할까요?";
+"mouse.recovery.help" = "이전 마우스 재설정이 중단되었습니다. 종료했던 앱을 다시 열까요? 나중에를 선택하면 복원 기록이 유지됩니다.";
+"mouse.recovery.later" = "나중에";
+"mouse.recovery.restore" = "복원";

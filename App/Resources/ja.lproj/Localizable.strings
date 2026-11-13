@@ -15,7 +15,6 @@
 "mouse.progress.help" = "実行中のアプリを終了し、macOS の環境設定と権限サービスを更新してから、アプリを再度開きます。";
 "mouse.success" = "マウス関連サービスを再起動しました";
 "mouse.failed" = "再起動が完了しませんでした";
-"mouse.no.tools" = "「設定 → マウスリセット」でインストール済みのアプリを追加してください。";
 "mouse.stop.timeout" = "終了しないアプリがあります。手動で終了してから再試行してください。";
 "mouse.app.not.running" = "%@ が起動しませんでした。";
 "mouse.restore.failed" = "すべてのアプリを復元できませんでした：";
@@ -47,7 +46,7 @@
 "cancel" = "キャンセル";
 "memory.recovery.show" = "復元記録を表示";
 "quit.recovery.title" = "復元が完了していません";
-"quit.recovery.help" = "関連するアプリまたはシステム設定を復元できませんでした。復元を再試行するか、終了をキャンセルできます。このまま終了すると、未完了のマウスツールの復元情報は失われます。一部のツールは閉じたままになるか、後で終了するため、手動で開き直してください。メモリ設定の復元記録は保持されます。";
+"quit.recovery.help" = "アプリまたはシステム設定の復元が完了していません。再試行するか、終了をキャンセルしてください。今終了すると一部のアプリが閉じたままになる可能性があります。復元記録は次回の起動まで保持されます。";
 "quit.recovery.retry" = "復元を再試行";
 "quit.recovery.quit" = "このまま終了";
 "finder.terminal.title" = "ターミナルで開く";
@@ -98,3 +97,7 @@
 "memory.not.visible" = "システムのメモリウインドウの表示を確認できませんでした。この macOS バージョンでは対応していない可能性があります。";
 "finder.host.unavailable" = "Buckleを開けませんでした";
 "finder.host.unavailable.help" = "「アプリケーション」からBuckleを開いて、このFinder操作をもう一度お試しください。";
+"mouse.recovery.title" = "アプリを復元しますか？";
+"mouse.recovery.help" = "前回のマウスリセットが中断されました。終了したアプリを開き直しますか？「後で」を選ぶと復元記録が保持されます。";
+"mouse.recovery.later" = "後で";
+"mouse.recovery.restore" = "復元";
