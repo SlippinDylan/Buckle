@@ -55,8 +55,7 @@ jobs:
             -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             BUCKLE_UPDATER_ENABLED=NO
           app=build/DerivedData/Build/Products/Release/Buckle.app
-          lipo "$app/Contents/MacOS/Buckle" -verify_arch arm64 x86_64
-          bash Scripts/verify-bundle.sh "$app"
+          bash Scripts/verify-bundle.sh --distribution "$app"
           bash Scripts/create-dmg.sh "$app" "build/Buckle-$BUCKLE_VERSION-test.dmg"
           (cd build && shasum -a 256 "Buckle-$BUCKLE_VERSION-test.dmg" > SHA256SUMS)
           echo 'Universal 2 test package with ad-hoc signature. Not notarized; not a public release.' >> "$GITHUB_STEP_SUMMARY"

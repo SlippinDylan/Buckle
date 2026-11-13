@@ -23,6 +23,8 @@ jobs:
           persist-credentials: false
       - name: Test and check source
         run: bash Scripts/check.sh
+      - name: Test native SwiftPM resource layout
+        run: swift test --build-system native --filter PermissionGuidance
       - name: Build Universal 2 app
         run: |
           xcodebuild build -project Buckle.xcodeproj -scheme Buckle \
@@ -30,6 +32,4 @@ jobs:
             -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
             -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             BUCKLE_UPDATER_ENABLED=NO
-          binary=build/DerivedData/Build/Products/Release/Buckle.app/Contents/MacOS/Buckle
-          lipo "$binary" -verify_arch arm64 x86_64
-          bash Scripts/verify-bundle.sh build/DerivedData/Build/Products/Release/Buckle.app
+          bash Scripts/verify-bundle.sh --distribution build/DerivedData/Build/Products/Release/Buckle.app

@@ -73,7 +73,7 @@ jobs:
           hdiutil attach "$RUNNER_TEMP/buckle-updates/$DMG_NAME" -readonly -nobrowse -mountpoint "$mount_root/volume"
           trap 'hdiutil detach "$mount_root/volume" && rm -rf "$mount_root"' EXIT
           app="$mount_root/volume/Buckle.app"
-          bash Scripts/verify-bundle.sh "$app"
+          bash Scripts/verify-bundle.sh --distribution "$app"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$VERSION"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = "$BUILD"
           test "$(/usr/libexec/PlistBuddy -c 'Print :BuckleUpdaterEnabled' "$app/Contents/Info.plist")" = YES

@@ -1,7 +1,12 @@
 #!/bin/bash
 set -euo pipefail
+distribution=false
+if [[ ${1:-} == --distribution ]]; then
+    distribution=true
+    shift
+fi
 if [[ $# -ne 1 ]]; then
-    echo 'Usage: Scripts/verify-bundle.sh <Buckle.app>' >&2
+    echo 'Usage: Scripts/verify-bundle.sh [--distribution] <Buckle.app>' >&2
     exit 64
 fi
 app_path="$1"
@@ -10,7 +15,7 @@ test -x "$app_path/Contents/MacOS/Buckle"
 test -x "$extension_path/Contents/MacOS/BuckleFinder"
 codesign --verify --deep --strict "$app_path"
 codesign --verify --strict "$extension_path"
-python3 - "$app_path" <<'PY'
+python3 - "$app_path" "$distribution" <<'PY'
 import plistlib
 import re
 from pathlib import Path
@@ -36,7 +41,8 @@ assert re.findall(r'Image Width: (\d+) Image Length: (\d+)', template.stdout + t
 assert not (app / 'Contents/Resources/AppIcon.icns').exists(), 'The previous app icon must not be bundled'
 for key in ('CFBundleShortVersionString', 'CFBundleVersion'):
     assert host_info[key] == extension_info[key], f'Mismatched {key}'
-assert extension_info['CFBundleIdentifier'] == host_info['CFBundleIdentifier'] + '.Finder'
+assert host_info['CFBundleIdentifier'] == 'studio.slippindylan.Buckle', 'Unexpected application bundle identifier'
+assert extension_info['CFBundleIdentifier'] == 'studio.slippindylan.Buckle.Finder', 'Unexpected Finder bundle identifier'
 assert extension_info['NSExtension']['NSExtensionPrincipalClass'] == 'BuckleFinder.BuckleFinderSync'
 assert extension_info['CFBundlePackageType'] == 'XPC!'
 architectures = []
@@ -51,6 +57,8 @@ for bundle, executable in ((app, 'Buckle'), (extension, 'BuckleFinder')):
         assert plistlib.loads(signed_entitlements.stdout).get('com.apple.security.cs.disable-library-validation') is True, (
             'Ad-hoc hardened application cannot load Sparkle without a library-validation exception')
 assert architectures[0] == architectures[1], 'App and extension architectures differ'
+if sys.argv[2] == 'true':
+    assert {'arm64', 'x86_64'} <= architectures[0], 'Distribution requires a Universal 2 app and Finder extension'
 framework = app / 'Contents/Frameworks/Sparkle.framework'
 permission_resources = app / 'Contents/Resources/PermissionFlow_PermissionFlow.bundle'
 assert permission_resources.is_dir(), 'PermissionFlow resources are missing'
