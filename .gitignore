@@ -1,0 +1,41 @@
+# macOS and editor state
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/
+
+# Build products; shared Xcode schemes and dependency locks are tracked.
+build/
+.build/
+DerivedData/
+.deriveddata/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.dSYM/
+*.dSYM.zip
+*.xcarchive/
+*.app/
+*.dmg
+*.log
+
+# Credentials and machine-local settings
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.key
+*.mobileprovision
+*.provisionprofile
+Config/Local.xcconfig
+
+# Personal notes and reference checkouts; official documentation stays tracked.
+.local/
+docs/private/
+docs/conversations/
+docs/drafts/
+docs/notes/
+ReferenceProjects/
