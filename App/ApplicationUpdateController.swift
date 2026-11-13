@@ -15,8 +15,14 @@ final class ApplicationUpdateController {
     private(set) var automaticChecks = false
     @ObservationIgnored private var controller: SPUStandardUpdaterController?
     @ObservationIgnored private var observations: Set<AnyCancellable> = []
+    @ObservationIgnored private let bundle: Bundle
 
     init(bundle: Bundle = .main) {
+        self.bundle = bundle
+    }
+
+    func start() {
+        guard controller == nil else { return }
         do {
             let configuration = try UpdateConfiguration(
                 enabled: bundle.object(forInfoDictionaryKey: "BuckleUpdaterEnabled") as? String == "YES",
@@ -44,7 +50,7 @@ final class ApplicationUpdateController {
 
     var status: String? {
         switch state {
-        case .disabled: localized("update.disabled")
+        case .disabled: nil
         case .unconfigured: localized("update.unconfigured")
         case .ready: nil
         case .failed(let message): message

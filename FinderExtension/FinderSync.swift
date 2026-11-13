@@ -23,21 +23,54 @@ final class BuckleFinderSync: FIFinderSync {
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
-        guard menuKind == .contextualMenuForItems,
-            let files = FIFinderSyncController.default().selectedItemURLs(), !files.isEmpty
-        else { return nil }
+        let controller = FIFinderSyncController.default()
+        let context: FinderMenuContext
+        switch menuKind {
+        case .contextualMenuForItems:
+            guard let files = controller.selectedItemURLs(), !files.isEmpty else { return nil }
+            context = .items(files)
+        case .contextualMenuForContainer:
+            guard let directory = controller.targetedURL() else { return nil }
+            context = .container(directory)
+        default: return nil
+        }
         let menu = NSMenu()
         menu.autoenablesItems = false
         do {
-            // Read on each menu opening so switches work without restarting Finder or sharing an App Group.
-            guard try FinderConfigurationStore.standard().load().airDropEnabled else { return menu }
-            guard let service = NSSharingService(named: .sendViaAirDrop) else { return menu }
-            let item = NSMenuItem(title: service.title, action: #selector(airDrop(_:)), keyEquivalent: "")
-            item.target = self
-            item.image = service.image
-            menu.addItem(item)
+            // Snapshot the context with each item; the action must not follow later selection changes.
+            let configuration = try FinderConfigurationStore.standard().load()
+            if case .items = context, configuration.airDropEnabled,
+                let service = NSSharingService(named: .sendViaAirDrop)
+            {
+                try add(.airDrop, files: context.files, title: service.title, image: service.image, to: menu)
+            }
+            if configuration.terminalEnabled, let directory = try context.directory() {
+                try add(
+                    .terminal, files: [directory], title: localized("finder.terminal.title"),
+                    image: NSImage(systemSymbolName: "terminal", accessibilityDescription: nil), to: menu)
+            }
+            if configuration.copyPathEnabled {
+                let item = NSMenuItem(
+                    title: localized("finder.copyPath.title"), action: #selector(copyPath(_:)), keyEquivalent: "")
+                item.target = self
+                item.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+                item.representedObject = context.files
+                menu.addItem(item)
+            }
+            if configuration.moveEnabled, let directory = try context.directory() {
+                let item = NSMenuItem(
+                    title: localized("finder.move.title"), action: #selector(performAction(_:)), keyEquivalent: "")
+                item.target = self
+                item.image = NSImage(systemSymbolName: "folder.badge.arrow.forward", accessibilityDescription: nil)
+                item.isEnabled = NSPasteboard.general.canReadObject(
+                    forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+                item.representedObject = try FinderActionRequest(
+                    action: .move, files: [directory], clipboardChangeCount: NSPasteboard.general.changeCount
+                ).url()
+                menu.addItem(item)
+            }
         } catch {
-            logger.error("Could not read menu configuration: \(error.localizedDescription, privacy: .private)")
+            logger.error("Could not create Finder menu: \(error.localizedDescription, privacy: .private)")
             let item = NSMenuItem(title: localized("finder.menu.unavailable"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
@@ -45,21 +78,37 @@ final class BuckleFinderSync: FIFinderSync {
         return menu
     }
 
-    @objc private func airDrop(_ sender: NSMenuItem) {
-        guard let files = FIFinderSyncController.default().selectedItemURLs(), !files.isEmpty else { return }
+    private nonisolated func add(_ action: FinderAction, files: [URL], title: String, image: NSImage?, to menu: NSMenu)
+        throws
+    {
+        let item = NSMenuItem(title: title, action: #selector(performAction(_:)), keyEquivalent: "")
+        item.target = self
+        item.image = image
+        item.representedObject = try FinderActionRequest(action: action, files: files).url()
+        menu.addItem(item)
+    }
+
+    @objc private func performAction(_ sender: NSMenuItem) {
+        guard let request = sender.representedObject as? URL else { return }
+        let host = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+        NSWorkspace.shared.open([request], withApplicationAt: host, configuration: configuration) {
+            [logger] _, error in
+            if let error { logger.error("Could not open Buckle: \(error.localizedDescription, privacy: .private)") }
+        }
+    }
+
+    @objc private func copyPath(_ sender: NSMenuItem) {
+        guard let files = sender.representedObject as? [URL] else { return }
         do {
-            let request = try FinderAirDropRequest(files: files).url()
-            let host = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent()
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = true
-            configuration.addsToRecentItems = false
-            NSWorkspace.shared.open([request], withApplicationAt: host, configuration: configuration) {
-                [logger] _, error in
-                if let error { logger.error("Could not open Buckle: \(error.localizedDescription, privacy: .private)") }
-            }
+            guard try FinderConfigurationStore.standard().load().copyPathEnabled else { return }
+            try FinderPathCopy.write(files, to: .general)
         } catch {
-            logger.error("Invalid AirDrop selection: \(error.localizedDescription, privacy: .private)")
+            logger.error("Could not copy paths: \(error.localizedDescription, privacy: .private)")
+            NSSound.beep()
         }
     }
 
@@ -71,5 +120,17 @@ final class BuckleFinderSync: FIFinderSync {
     @objc private func volumeUnmounted(_ notification: Notification) {
         guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
         FIFinderSyncController.default().directoryURLs.remove(url)
+    }
+}
+
+enum FinderPathCopy {
+    static func write(_ files: [URL], to pasteboard: NSPasteboard) throws {
+        guard !files.isEmpty, files.allSatisfy({ $0.isFileURL }) else {
+            throw FinderActionRequest.RequestError.invalidFiles
+        }
+        pasteboard.clearContents()
+        guard pasteboard.setString(files.map(\.path).joined(separator: "\n"), forType: .string) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
     }
 }

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import BuckleCore
@@ -29,6 +30,32 @@ import Testing
 }
 
 private enum RecoveryFailure: Error { case expected }
+
+@Test @MainActor func userActionErrorsRespectCancellationAndPendingQuit() async {
+    let lifecycle = ApplicationLifecycle()
+    #expect(!lifecycle.shouldPresentUserActionError(CocoaError(.userCancelled)))
+    #expect(lifecycle.shouldPresentUserActionError(CocoaError(.fileReadNoPermission)))
+    // Browser launching is not a recovery operation; another operation can keep a quit pending.
+    #expect(lifecycle.begin(.memoryPermissions))
+    var completion: CheckedContinuation<Void, Error>?
+    var presented = false
+    let launching = Task {
+        do {
+            try await withCheckedThrowingContinuation { completion = $0 }
+        } catch {
+            presented = lifecycle.shouldPresentUserActionError(error)
+        }
+    }
+    while completion == nil { await Task.yield() }
+    #expect(!lifecycle.requestTermination())
+    completion?.resume(throwing: CocoaError(.fileReadNoPermission))
+    await launching.value
+    #expect(!presented)
+    lifecycle.end(.memoryPermissions)
+    #expect(!lifecycle.shouldPresentUserActionError(CocoaError(.fileReadNoPermission)))
+    lifecycle.cancelTermination()
+    #expect(lifecycle.shouldPresentUserActionError(CocoaError(.fileReadNoPermission)))
+}
 
 @Test @MainActor func recoveryRetriesWithoutAdmittingNewOperationsOrQuitRequests() async {
     let lifecycle = ApplicationLifecycle()

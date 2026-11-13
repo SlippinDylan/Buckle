@@ -5,6 +5,119 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"E19E492FBF374880B9365CA7" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/Resources/MenuBarIconTemplate@2x.png";
+			"lastKnownFileType" = "image.png";
+			"sourceTree" = "<group>";
+		};
+		"F211CB2B5C1B431788E534C3" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E19E492FBF374880B9365CA7";
+		};
+		"D2AC2531996949CBAA783DBC" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/Resources/MenuBarIconTemplate.png";
+			"lastKnownFileType" = "image.png";
+			"sourceTree" = "<group>";
+		};
+		"E36F987392B2423C96CE8AE2" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D2AC2531996949CBAA783DBC";
+		};
+		"D5D38EAF0BE54D6A82AF4271" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/Core/ApplicationLanguage.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"F32219DA93134757BA760514" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D5D38EAF0BE54D6A82AF4271";
+		};
+		"BEE072C30A3847DEA8985E0C" = {
+			"isa" = "XCLocalSwiftPackageReference";
+			"relativePath" = ".";
+		};
+		"137221E113B14F18A2B68175" = {
+			"isa" = "XCSwiftPackageProductDependency";
+			"package" = "BEE072C30A3847DEA8985E0C";
+			"productName" = "BucklePermissionSupport";
+		};
+		"2AE16309EEC349A1B8A840C5" = {
+			"isa" = "PBXBuildFile";
+			"productRef" = "137221E113B14F18A2B68175";
+		};
+		"BBEC9378AF0A44F29E92F6B3" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/Resources/ThirdPartyNotices.txt";
+			"lastKnownFileType" = "text";
+			"sourceTree" = "<group>";
+		};
+		"22257A4EAAE14964BFE66D9C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BBEC9378AF0A44F29E92F6B3";
+		};
+		"52FAB07EF0CC4158831DA36D" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/StatusMenuController.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"21DF317BF8064CB995A4BFC8" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "52FAB07EF0CC4158831DA36D";
+		};
+		"B6BFBDF027AC4292B62A85B4" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/ApplicationSettingsWindowController.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"5EF9525844AC450A9ACDD7EC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B6BFBDF027AC4292B62A85B4";
+		};
+		"221AA94EA7E3440EAC036D2F" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/ApplicationSettingsViewController.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"002D9F3401934C08B6BF57AF" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "221AA94EA7E3440EAC036D2F";
+		};
+		"577918005B074E19911F293C" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/MenuBarRestartController.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"D426C11351F24A05B815A63B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "577918005B074E19911F293C";
+		};
+		"EC3FA22F5D56417692C8689E" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/FinderMoveService.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"81B7A7CC31AE4427B5EA0C2F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EC3FA22F5D56417692C8689E";
+		};
+		"59A77260BE624F798AE2AF9E" = {
+			"isa" = "PBXFileReference";
+			"path" = "App/FinderActionService.swift";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"B16933114C1B431A857FF677" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "59A77260BE624F798AE2AF9E";
+		};
 		"317B85B355CB4A74889D2F87" = {
 			"isa" = "PBXFileReference";
 			"path" = "App/ApplicationRecovery.swift";
@@ -29,20 +142,27 @@
 			"isa" = "PBXGroup";
 			"sourceTree" = "<group>";
 			"children" = (
+				"BBEC9378AF0A44F29E92F6B3",
+				"52FAB07EF0CC4158831DA36D",
+				"B6BFBDF027AC4292B62A85B4",
+				"221AA94EA7E3440EAC036D2F",
+				"577918005B074E19911F293C",
+				"EC3FA22F5D56417692C8689E",
+				"59A77260BE624F798AE2AF9E",
 				"6604C162D604803D00293FC2",
 				"317B85B355CB4A74889D2F87",
 				"D87C00EEA97B82449237BA9F",
 				"AEC51B69AC617620E938D4AB",
 				"F38081ECB7709EE6FE878D4E",
 				"45540981A6123C3EEE48F5A5",
-				"E0EA237A7F7810393C681613",
+				"D5D38EAF0BE54D6A82AF4271",
 				"DD19C82C35F5D3884BB73D0A",
-				"69E3C5B0215CA23296FC7468",
-				"EC8FAF2DDB1F7D8A57568D5F",
 				"5D9F2BCADD38DD85A1079E6A",
 				"FD5C36D35E0D71E61860960F",
 				"C8202EAA37B48C49144CA32D",
 				"F8995BA5891B07E328C60D6B",
+				"D2AC2531996949CBAA783DBC",
+				"E19E492FBF374880B9365CA7",
 				"A2CDD2B51B9CC7AF9D7B2D55",
 				"39824E7840FC2FD1E608B4FD",
 				"8EC9A00BFD09B3190AC6B222",
@@ -53,7 +173,6 @@
 				"C5CA8BE0657B4AE7255E8700",
 				"50A5D4B2A55FFCDD8FAF10F7",
 				"4449D49C49E2BBC708799B15",
-				"B2049BA324E342A1B1E0045D",
 				"7501A8A54D7CD1DDC5369297",
 				"9707B4B4D31D7927B1E34644",
 				"A796F4F956267DEB11311AB9",
@@ -74,10 +193,6 @@
 			"lastKnownFileType" = "sourcecode.swift";
 			"sourceTree" = "<group>";
 		};
-		"7EF893F18AC86BF513FF9831" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "EC8FAF2DDB1F7D8A57568D5F";
-		};
 		"5C88DA4A80215F2E82D8D1DD" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "50A5D4B2A55FFCDD8FAF10F7";
@@ -89,6 +204,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"SUPPORTED_PLATFORMS" = "macosx";
 				"CODE_SIGN_ENTITLEMENTS" = "App/Buckle.entitlements";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "Buckle";
 				"COMBINE_HIDPI_IMAGES" = "YES";
 				"ENABLE_APP_SANDBOX" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
@@ -131,12 +247,6 @@
 			"lastKnownFileType" = "sourcecode.swift";
 			"sourceTree" = "<group>";
 		};
-		"E0EA237A7F7810393C681613" = {
-			"path" = "App/Core/MemoryPolicy.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
 		"8EC9A00BFD09B3190AC6B222" = {
 			"path" = "README.md";
 			"isa" = "PBXFileReference";
@@ -157,6 +267,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"SUPPORTED_PLATFORMS" = "macosx";
 				"CODE_SIGN_ENTITLEMENTS" = "App/Buckle.entitlements";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "Buckle";
 				"COMBINE_HIDPI_IMAGES" = "YES";
 				"ENABLE_APP_SANDBOX" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
@@ -168,12 +279,6 @@
 				"PRODUCT_NAME" = "Buckle";
 			};
 			"name" = "Release";
-		};
-		"69E3C5B0215CA23296FC7468" = {
-			"path" = "App/MemoryMonitor.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
 		};
 		"FD5C36D35E0D71E61860960F" = {
 			"isa" = "PBXVariantGroup";
@@ -298,6 +403,7 @@
 			"projectRoot" = "";
 			"mainGroup" = "B28B7AF69320201D1CF206EB";
 			"packageReferences" = (
+				"BEE072C30A3847DEA8985E0C",
 				"7A9847C9B81D3D43C13A6922",
 			);
 		};
@@ -337,6 +443,7 @@
 			"isa" = "PBXFrameworksBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"2AE16309EEC349A1B8A840C5",
 				"DFF05200A03232D9EF74C52B",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
@@ -391,10 +498,6 @@
 			"lastKnownFileType" = "text.plist.strings";
 			"sourceTree" = "<group>";
 		};
-		"DE805348F335AFF298AD2555" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "B2049BA324E342A1B1E0045D";
-		};
 		"4A69B4F87057163547221B85" = {
 			"path" = "App/Resources/ja.lproj/Localizable.strings";
 			"isa" = "PBXFileReference";
@@ -425,6 +528,7 @@
 			"buildRules" = (
 			);
 			"packageProductDependencies" = (
+				"137221E113B14F18A2B68175",
 				"4DFFAE54FC0D3EA26AC1F6BA",
 			);
 		};
@@ -455,9 +559,9 @@
 			"sourceTree" = "<group>";
 		};
 		"F8995BA5891B07E328C60D6B" = {
-			"path" = "App/Resources/AppIcon.icns";
+			"path" = "Buckle.icon";
 			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "image.icns";
+			"lastKnownFileType" = "folder.iconcomposer.icon";
 			"sourceTree" = "<group>";
 		};
 		"269802EC8EC52521172AEA1F" = {
@@ -488,9 +592,12 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"22257A4EAAE14964BFE66D9C",
 				"252BFC86C59C24C827D3C8D6",
 				"114E65961544727AD4172E65",
 				"1D849538782218097882FFDD",
+				"E36F987392B2423C96CE8AE2",
+				"F211CB2B5C1B431788E534C3",
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
@@ -525,10 +632,6 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "text";
 			"sourceTree" = "<group>";
-		};
-		"3A5BCEE3078614B808A2E304" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "69E3C5B0215CA23296FC7468";
 		};
 		"114E65961544727AD4172E65" = {
 			"isa" = "PBXBuildFile";
@@ -583,19 +686,9 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "C8202EAA37B48C49144CA32D";
 		};
-		"5087C5BC32A1F96E86D48324" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "E0EA237A7F7810393C681613";
-		};
 		"98E770CE446F156F54076207" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "50A5D4B2A55FFCDD8FAF10F7";
-		};
-		"B2049BA324E342A1B1E0045D" = {
-			"path" = "App/FinderExtensionStatusView.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
 		};
 		"45540981A6123C3EEE48F5A5" = {
 			"path" = "App/Core/BrowserLanguage.swift";
@@ -689,22 +782,25 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"21DF317BF8064CB995A4BFC8",
+				"5EF9525844AC450A9ACDD7EC",
+				"002D9F3401934C08B6BF57AF",
+				"D426C11351F24A05B815A63B",
+				"81B7A7CC31AE4427B5EA0C2F",
+				"B16933114C1B431A857FF677",
 				"269802EC8EC52521172AEA1F",
 				"D2C9B65B66187C442A1C96D5",
 				"7E45632F9AC588CCBBF9E16B",
 				"FF2285E38888660DDD9283BD",
 				"C59E063FE8DC46A3AA7E7B64",
 				"37732BF3DC9F668BD6EDF029",
-				"5087C5BC32A1F96E86D48324",
+				"F32219DA93134757BA760514",
 				"0491B1FC749024C9D5AA3FE2",
-				"3A5BCEE3078614B808A2E304",
-				"7EF893F18AC86BF513FF9831",
 				"752E666A255A8EAE5389BDC3",
 				"2AF1BDA34DEECAB80D3D16B1",
 				"65900E808255414511EF6674",
 				"98E770CE446F156F54076207",
 				"8C3BF7210D1832AB83482416",
-				"DE805348F335AFF298AD2555",
 				"EA5DFAE6F27EA6D02174D40F",
 				"E663C9F1FC5F9449E7B88241",
 			);
@@ -720,12 +816,6 @@
 			"files" = (
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
-		};
-		"EC8FAF2DDB1F7D8A57568D5F" = {
-			"path" = "App/MemoryView.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
 		};
 		"50A5D4B2A55FFCDD8FAF10F7" = {
 			"path" = "App/Core/FinderIntegration.swift";

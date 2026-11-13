@@ -14,6 +14,11 @@ final class FinderExtensionController {
     private(set) var configuration: FinderConfiguration?
     private(set) var isBusy = false
     @ObservationIgnored private let runner = FinderPluginKit()
+    @ObservationIgnored private let configurationStore: () throws -> FinderConfigurationStore
+
+    init(configurationStore: @escaping () throws -> FinderConfigurationStore = FinderConfigurationStore.standard) {
+        self.configurationStore = configurationStore
+    }
 
     private var extensionURL: URL {
         Bundle.main.bundleURL.appending(path: "Contents/PlugIns/\(FinderIntegration.bundleName)")
@@ -26,7 +31,7 @@ final class FinderExtensionController {
         configuration = nil
         do {
             do {
-                configuration = try FinderConfigurationStore.standard().load()
+                configuration = try configurationStore().load()
             } catch let error as DecodingError {
                 state = .invalidConfiguration(error.localizedDescription)
                 return
@@ -40,31 +45,18 @@ final class FinderExtensionController {
     func restoreConfiguration() async {
         guard !isBusy else { return }
         do {
-            try FinderConfigurationStore.standard().restoreDefaults()
+            try configurationStore().restoreDefaults()
             await refresh()
         } catch {
             state = .failed(error.localizedDescription)
         }
     }
 
-    func setAirDropEnabled(_ enabled: Bool) {
-        do {
-            let updated = FinderConfiguration(airDropEnabled: enabled)
-            try FinderConfigurationStore.standard().save(updated)
-            configuration = updated
-        } catch {
-            state = .failed(error.localizedDescription)
-        }
-    }
-
-    func register() async {
-        guard !isBusy else { return }
-        isBusy = true
-        defer { isBusy = false }
-        do {
-            _ = try await runner.run(["-a", extensionURL.path])
-            state = try await readState()
-        } catch { state = .failed(error.localizedDescription) }
+    func setEnabled(_ enabled: Bool, for action: FinderAction) throws {
+        var updated = try configurationStore().load()
+        updated.setEnabled(enabled, for: action)
+        try configurationStore().save(updated)
+        configuration = updated
     }
 
     func enable() async {

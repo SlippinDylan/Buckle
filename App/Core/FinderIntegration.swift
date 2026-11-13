@@ -8,7 +8,54 @@ enum FinderIntegration {
 
 struct FinderConfiguration: Codable, Equatable {
     var airDropEnabled: Bool
-    static let initial = FinderConfiguration(airDropEnabled: true)
+    var terminalEnabled: Bool
+    var copyPathEnabled: Bool
+    var moveEnabled: Bool
+    static let initial = FinderConfiguration()
+
+    private enum CodingKeys: String, CodingKey { case airDropEnabled, terminalEnabled, copyPathEnabled, moveEnabled }
+
+    init(
+        airDropEnabled: Bool = false, terminalEnabled: Bool = false, copyPathEnabled: Bool = false,
+        moveEnabled: Bool = false
+    ) {
+        self.airDropEnabled = airDropEnabled
+        self.terminalEnabled = terminalEnabled
+        self.copyPathEnabled = copyPathEnabled
+        self.moveEnabled = moveEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        airDropEnabled = try values.decode(Bool.self, forKey: .airDropEnabled)
+        terminalEnabled =
+            values.contains(.terminalEnabled)
+            ? try values.decode(Bool.self, forKey: .terminalEnabled) : Self.initial.terminalEnabled
+        copyPathEnabled =
+            values.contains(.copyPathEnabled)
+            ? try values.decode(Bool.self, forKey: .copyPathEnabled) : Self.initial.copyPathEnabled
+        moveEnabled =
+            values.contains(.moveEnabled)
+            ? try values.decode(Bool.self, forKey: .moveEnabled) : Self.initial.moveEnabled
+    }
+
+    func isEnabled(_ action: FinderAction) -> Bool {
+        switch action {
+        case .airDrop: airDropEnabled
+        case .terminal: terminalEnabled
+        case .copyPath: copyPathEnabled
+        case .move: moveEnabled
+        }
+    }
+
+    mutating func setEnabled(_ enabled: Bool, for action: FinderAction) {
+        switch action {
+        case .airDrop: airDropEnabled = enabled
+        case .terminal: terminalEnabled = enabled
+        case .copyPath: copyPathEnabled = enabled
+        case .move: moveEnabled = enabled
+        }
+    }
 }
 
 struct FinderConfigurationStore {
@@ -54,37 +101,83 @@ struct FinderConfigurationStore {
     }
 }
 
-struct FinderAirDropRequest: Equatable {
-    let files: [URL]
+enum FinderAction: String, CaseIterable {
+    case airDrop = "airdrop"
+    case terminal
+    case copyPath = "copy-path"
+    case move
+}
 
-    init(files: [URL]) throws {
+enum FinderMenuContext {
+    case items([URL])
+    case container(URL)
+
+    var files: [URL] {
+        switch self {
+        case .items(let files): files
+        case .container(let directory): [directory]
+        }
+    }
+
+    func directory() throws -> URL? {
+        guard files.count == 1 else { return nil }
+        let url = files[0]
+        let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
+        return values.isDirectory == true && values.isPackage != true ? url : nil
+    }
+}
+
+struct FinderActionRequest: Equatable {
+    let action: FinderAction
+    let files: [URL]
+    let clipboardChangeCount: Int?
+
+    init(action: FinderAction, files: [URL], clipboardChangeCount: Int? = nil) throws {
+        // Clipboard writes stay inside the extension and are never accepted through the public URL scheme.
+        guard action != .copyPath else { throw RequestError.invalidRoute }
         guard !files.isEmpty,
             files.allSatisfy({
                 $0.isFileURL && ($0.host == nil || $0.host == "" || $0.host == "localhost")
             })
         else { throw RequestError.invalidFiles }
+        guard action == .airDrop || files.count == 1 else { throw RequestError.invalidFiles }
+        guard (action == .move) == (clipboardChangeCount != nil), clipboardChangeCount.map({ $0 >= 0 }) != false else {
+            throw RequestError.invalidRoute
+        }
+        self.action = action
         self.files = files
+        self.clipboardChangeCount = clipboardChangeCount
     }
 
     init(url: URL) throws {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-            components.scheme == "buckle", components.host == "finder", components.path == "/airdrop",
+            components.scheme == "buckle", components.host == "finder",
+            let action = FinderAction(rawValue: String(components.path.dropFirst())),
             components.user == nil, components.password == nil, components.port == nil, components.fragment == nil,
-            let items = components.queryItems, items.allSatisfy({ $0.name == "file" })
+            let items = components.queryItems, items.allSatisfy({ $0.name == "file" || $0.name == "clipboard" })
         else { throw RequestError.invalidRoute }
-        let files = try items.map { item in
+        let counts = items.filter { $0.name == "clipboard" }
+        guard counts.count <= 1 else { throw RequestError.invalidRoute }
+        let count = try counts.first.map { item -> Int in
+            guard let text = item.value, let value = Int(text), value >= 0 else { throw RequestError.invalidRoute }
+            return value
+        }
+        let files = try items.filter { $0.name == "file" }.map { item in
             guard let value = item.value, let url = URL(string: value) else { throw RequestError.invalidFiles }
             return url
         }
-        try self.init(files: files)
+        try self.init(action: action, files: files, clipboardChangeCount: count)
     }
 
     func url() throws -> URL {
         var components = URLComponents()
         components.scheme = "buckle"
         components.host = "finder"
-        components.path = "/airdrop"
+        components.path = "/" + action.rawValue
         components.queryItems = files.map { URLQueryItem(name: "file", value: $0.absoluteString) }
+        if let clipboardChangeCount {
+            components.queryItems?.append(URLQueryItem(name: "clipboard", value: String(clipboardChangeCount)))
+        }
         guard let url = components.url else { throw RequestError.invalidRoute }
         return url
     }

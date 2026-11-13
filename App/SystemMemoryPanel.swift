@@ -6,8 +6,18 @@ import Observation
 protocol SystemMemoryPanelOperations {
     func debugValue() -> CFPropertyList?
     func setDebugValue(_ value: CFPropertyList?) throws
-    func permissionIssue(requestPermission: Bool) async throws -> MemoryPanelPermissionIssue?
+    func permissions(requestPermission: Bool) async throws -> MemoryPanelPermissions
     func trigger() async throws
+}
+
+struct MemoryPanelPermissions {
+    let accessibilityGranted: Bool
+    let automationGranted: Bool
+
+    var issue: MemoryPanelPermissionIssue? {
+        if !accessibilityGranted { return .accessibility }
+        return automationGranted ? nil : .automation
+    }
 }
 
 enum MemoryPanelPermissionStatus {
@@ -26,12 +36,6 @@ enum MemoryPanelPermissionIssue {
         }
     }
 
-    func openSettings() {
-        let pane = self == .accessibility ? "Privacy_Accessibility" : "Privacy_Automation"
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
-            NSWorkspace.shared.open(url)
-        }
-    }
 }
 
 // The journal must reach disk before loginwindow preferences change, and survive failed restoration.
@@ -71,7 +75,9 @@ struct MemoryPanelRecoveryStore {
 @MainActor @Observable
 final class SystemMemoryPanel {
     var isOpening: Bool { lifecycle.isActive(.memoryPanel) }
+    var isCheckingPermissions: Bool { lifecycle.isActive(.memoryPermissions) }
     private(set) var permissionStatus: MemoryPanelPermissionStatus = .unchecked
+    private(set) var automationGranted: Bool?
     var permissionIssue: MemoryPanelPermissionIssue? {
         if case .required(let issue) = permissionStatus { return issue }
         return nil
@@ -116,14 +122,36 @@ final class SystemMemoryPanel {
                 lifecycle.end(.memoryPermissions)
             }
             do {
-                let issue = try await operations.permissionIssue(requestPermission: false)
-                permissionStatus = issue.map { .required($0) } ?? .granted
+                let permissions = try await operations.permissions(requestPermission: false)
+                recordPermissions(permissions)
             } catch {
                 permissionStatus = .failed(error.localizedDescription)
+                automationGranted = nil
             }
         }
         permissionCheck = check
         await check.value
+    }
+
+    func requestAutomationPermission() async throws {
+        if let permissionCheck { await permissionCheck.value }
+        guard !isOpening, lifecycle.begin(.memoryPermissions) else { throw CocoaError(.userCancelled) }
+        defer { lifecycle.end(.memoryPermissions) }
+        do {
+            let permissions = try await operations.permissions(requestPermission: true)
+            guard !lifecycle.terminationRequested else { throw CocoaError(.userCancelled) }
+            recordPermissions(permissions)
+        } catch {
+            guard !lifecycle.terminationRequested else { throw CocoaError(.userCancelled) }
+            permissionStatus = .failed(error.localizedDescription)
+            automationGranted = nil
+            throw error
+        }
+    }
+
+    private func recordPermissions(_ permissions: MemoryPanelPermissions) {
+        permissionStatus = permissions.issue.map { .required($0) } ?? .granted
+        automationGranted = permissions.automationGranted
     }
 
     func show(requestPermission: Bool) async throws -> Bool {
@@ -135,9 +163,17 @@ final class SystemMemoryPanel {
         error = nil
         try recover()
         permissionStatus = .unchecked
-        let issue = try await operations.permissionIssue(requestPermission: requestPermission)
-        permissionStatus = issue.map { .required($0) } ?? .granted
-        guard issue == nil else { return false }
+        let permissions: MemoryPanelPermissions
+        do {
+            permissions = try await operations.permissions(requestPermission: requestPermission)
+        } catch {
+            guard !lifecycle.terminationRequested else { return false }
+            throw error
+        }
+        // Authorization can outlive a quit request; no new work may start after it returns.
+        guard !lifecycle.terminationRequested else { return false }
+        recordPermissions(permissions)
+        guard permissions.issue == nil else { return false }
         try recovery.save(original: operations.debugValue())
         var triggerError: Error?
         do {
@@ -182,9 +218,15 @@ private final class NativeMemoryPanelOperations: SystemMemoryPanelOperations {
         }
     }
 
-    func permissionIssue(requestPermission: Bool) async throws -> MemoryPanelPermissionIssue? {
-        let options = ["AXTrustedCheckOptionPrompt": requestPermission] as CFDictionary
-        guard AXIsProcessTrustedWithOptions(options) else { return .accessibility }
+    func permissions(requestPermission: Bool) async throws -> MemoryPanelPermissions {
+        // Accessibility guidance is owned by PermissionFlow, not an additional system trust prompt.
+        let accessibility = AXIsProcessTrusted()
+        try await ensureSystemEventsRunning()
+        let automation = try await runner.automationPermissionIssue(requestPermission: requestPermission) == nil
+        return MemoryPanelPermissions(accessibilityGranted: accessibility, automationGranted: automation)
+    }
+
+    private func ensureSystemEventsRunning() async throws {
         // Apple's permission API requires a running target; System Events is a background system app.
         if NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systemevents").isEmpty {
             let configuration = NSWorkspace.OpenConfiguration()
@@ -194,7 +236,6 @@ private final class NativeMemoryPanelOperations: SystemMemoryPanelOperations {
                 at: URL(fileURLWithPath: "/System/Library/CoreServices/System Events.app"), configuration: configuration
             )
         }
-        return try await runner.automationPermissionIssue(requestPermission: requestPermission)
     }
 
     func trigger() async throws {

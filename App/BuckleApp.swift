@@ -1,4 +1,5 @@
 import AppKit
+import BucklePermissionSupport
 import SwiftUI
 
 @main
@@ -13,15 +14,24 @@ enum BuckleApp {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let monitor = MemoryMonitor()
-    private let airDrop = AirDropService()
     private let finderExtension = FinderExtensionController()
     private let lifecycle = ApplicationLifecycle()
     private lazy var mouseReset = MouseResetController(lifecycle: lifecycle)
-    private var statusItem: NSStatusItem?
-    private let popover = NSPopover()
+    private lazy var menuBarRestart = MenuBarRestartController(lifecycle: lifecycle)
+    private lazy var finderActions = FinderActionService(lifecycle: lifecycle)
+    private let permissionGuidance = PermissionGuidance()
+    private lazy var settings = ApplicationSettingsWindowController(
+        memoryPanel: systemMemoryPanel, finder: finderExtension,
+        updates: updates, lifecycle: lifecycle, permissionGuidance: permissionGuidance)
+    private lazy var statusMenu = StatusMenuController(
+        memoryPanel: systemMemoryPanel, mouseReset: mouseReset,
+        menuBarRestart: menuBarRestart, finder: finderExtension, lifecycle: lifecycle,
+        openMemory: { [weak self] in Task { await self?.showSystemMemoryPanel() } },
+        openSettings: { [weak self] category in self?.showSettings(category: category) },
+        resetMouse: { [weak self] in self?.showMouseReset() })
+    private var mouseResetWindow: NSWindow?
     private lazy var systemMemoryPanel = SystemMemoryPanel(lifecycle: lifecycle)
-    private lazy var updates = ApplicationUpdateController()
+    private let updates = ApplicationUpdateController()
     private var ownsApplicationState = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -34,75 +44,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         ownsApplicationState = true
+        updates.start()
         lifecycle.onReadyToTerminate = { [weak self] in
             self?.prepareToTerminate()
         }
         NSApp.setActivationPolicy(.accessory)
         do { try systemMemoryPanel.recover() } catch { systemMemoryPanel.error = error.localizedDescription }
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        self.statusItem = statusItem
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "rectangle.compress.vertical", accessibilityDescription: "Buckle")
-            button.target = self
-            button.action = #selector(handleStatusClick)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.toolTip = localized("memory.menu.help")
-        }
-        popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
-            rootView: MemoryView(
-                monitor: monitor, systemMemoryPanel: systemMemoryPanel,
-                openMemory: { [weak self] in
-                    Task { await self?.showSystemMemoryPanel(requestPermission: true) }
-                }, mouseReset: mouseReset, finderExtension: finderExtension, updates: updates))
+        statusMenu.start()
         mouseReset.onStateChange = { [weak self] in
             guard let self else { return }
-            if let button = self.statusItem?.button {
-                let label = self.mouseReset.accessibilityLabel
-                button.image = NSImage(systemSymbolName: self.mouseReset.symbol, accessibilityDescription: label)
-                button.setAccessibilityLabel(label)
-                if self.mouseReset.isPresented && !self.mouseReset.isRunning {
-                    NSAccessibility.post(
-                        element: button, notification: .announcementRequested,
-                        userInfo: [.announcement: label, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
-                }
-            }
-            self.popover.behavior = self.mouseReset.isPresented ? .applicationDefined : .transient
+            self.statusMenu.updateStatusImage()
+            if !self.mouseReset.isPresented { self.mouseResetWindow?.close() }
         }
-        monitor.onReminder = { [weak self] in
-            await self?.showSystemMemoryPanel(requestPermission: false) ?? false
-        }
-        monitor.start()
         Task { await finderExtension.refresh() }
         Task { await systemMemoryPanel.refreshPermissions() }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        do {
-            guard try FinderConfigurationStore.standard().load().airDropEnabled else {
-                throw NSError(
-                    domain: "Buckle.Finder", code: 1,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: localized("finder.airdrop.disabled")
-                    ])
+        Task { @MainActor in
+            guard !lifecycle.terminationRequested else { return }
+            do {
+                for url in urls {
+                    let request = try FinderActionRequest(url: url)
+                    try await finderActions.handle(request)
+                }
+            } catch {
+                guard lifecycle.shouldPresentUserActionError(error) else { return }
+                NSApp.activate()
+                let alert: NSAlert
+                if error is FinderActionRequest.RequestError {
+                    alert = NSAlert()
+                    alert.messageText = localized("finder.invalid.request")
+                } else {
+                    alert = NSAlert(error: error)
+                }
+                alert.runModal()
             }
-            for url in urls {
-                let request = try FinderAirDropRequest(url: url)
-                try airDrop.sendFiles(request.files)
-            }
-        } catch is FinderAirDropRequest.RequestError {
-            let alert = NSAlert()
-            alert.messageText = localized("finder.invalid.request")
-            alert.runModal()
-        } catch {
-            NSAlert(error: error).runModal()
         }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard ownsApplicationState else { return }
+        Task { await finderExtension.refresh() }
+        Task { await systemMemoryPanel.refreshPermissions() }
+        settings.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    func applicationWillTerminate(_ notification: Notification) { permissionGuidance.close() }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showPopover()
+        showSettings()
         return false
     }
 
@@ -139,45 +132,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func handleStatusClick() {
-        if NSApp.currentEvent?.type == .rightMouseUp || mouseReset.isPresented {
-            togglePopover()
-        } else {
-            Task { await showSystemMemoryPanel(requestPermission: true) }
-        }
-    }
-
-    private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            showPopover()
-        }
-    }
-
-    private func showPopover() {
-        guard let button = statusItem?.button else { return }
-        NSApp.activate(ignoringOtherApps: true)
+    private func showSettings(category: ApplicationSettingsViewController.Category? = nil) {
         Task { await finderExtension.refresh() }
-        if !popover.isShown { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY) }
+        settings.present(category: category)
     }
 
-    @discardableResult
-    private func showSystemMemoryPanel(requestPermission: Bool) async -> Bool {
-        guard !systemMemoryPanel.isOpening else { return false }
+    private func showMouseReset() {
+        guard !lifecycle.terminationRequested else { return }
+        if mouseResetWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
+                styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = localized("mouse.reset")
+            window.contentViewController = NSHostingController(rootView: MouseResetView(controller: mouseReset))
+            window.isReleasedWhenClosed = false
+            window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            window.center()
+            mouseResetWindow = window
+        }
+        NSApp.activate()
+        mouseResetWindow?.makeKeyAndOrderFront(nil)
+        if !mouseReset.isPresented { Task { await mouseReset.run() } }
+    }
+
+    private func showSystemMemoryPanel() async {
+        guard !systemMemoryPanel.isOpening else { return }
         do {
-            let opened = try await systemMemoryPanel.show(requestPermission: requestPermission)
-            if !lifecycle.terminationRequested {
-                if opened { popover.performClose(nil) } else if requestPermission { showPopover() }
-            }
-            return opened
+            let opened = try await systemMemoryPanel.show(requestPermission: true)
+            if !opened && !lifecycle.terminationRequested { showSettings(category: .permissions) }
         } catch {
             systemMemoryPanel.error = error.localizedDescription
-            if requestPermission && !lifecycle.terminationRequested {
+            if !lifecycle.terminationRequested {
                 NSApp.activate(ignoringOtherApps: true)
                 NSAlert(error: error).runModal()
             }
-            return false
         }
     }
 }

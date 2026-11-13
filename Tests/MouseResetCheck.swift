@@ -90,7 +90,7 @@ private final class FakeMemoryRecovery: SystemMemoryPanelOperations {
             throw NSError(domain: "Test", code: 2, userInfo: [NSLocalizedDescriptionKey: "memory recovery failure"])
         }
     }
-    func permissionIssue(requestPermission: Bool) async throws -> MemoryPanelPermissionIssue? {
+    func permissions(requestPermission: Bool) async throws -> MemoryPanelPermissions {
         preconditionFailure("Quit recovery must not request permissions")
     }
     func trigger() async throws { preconditionFailure("Quit recovery must not open the memory window") }

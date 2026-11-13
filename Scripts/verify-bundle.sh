@@ -12,6 +12,7 @@ codesign --verify --deep --strict "$app_path"
 codesign --verify --strict "$extension_path"
 python3 - "$app_path" <<'PY'
 import plistlib
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -22,6 +23,17 @@ with (app / 'Contents/Info.plist').open('rb') as source:
     host_info = plistlib.load(source)
 with (extension / 'Contents/Info.plist').open('rb') as source:
     extension_info = plistlib.load(source)
+assert host_info['CFBundleIconName'] == 'Buckle', 'The app must use the Buckle Icon Composer document'
+assert host_info['CFBundleIconFile'] == 'Buckle', 'The compatibility icon must match the main icon'
+for resource in ('Buckle.icns', 'Assets.car', 'MenuBarIconTemplate.tiff'):
+    assert (app / 'Contents/Resources' / resource).is_file(), f'Missing branding resource: {resource}'
+# COMBINE_HIDPI_IMAGES preserves both PNG scales in one named TIFF resource.
+template = subprocess.run(
+    ['tiffutil', '-info', str(app / 'Contents/Resources/MenuBarIconTemplate.tiff')],
+    check=True, capture_output=True, text=True)
+assert re.findall(r'Image Width: (\d+) Image Length: (\d+)', template.stdout + template.stderr) == [
+    ('18', '18'), ('36', '36')], 'The menu-bar template must contain both 1x and 2x images'
+assert not (app / 'Contents/Resources/AppIcon.icns').exists(), 'The previous app icon must not be bundled'
 for key in ('CFBundleShortVersionString', 'CFBundleVersion'):
     assert host_info[key] == extension_info[key], f'Mismatched {key}'
 assert extension_info['CFBundleIdentifier'] == host_info['CFBundleIdentifier'] + '.Finder'
@@ -40,6 +52,12 @@ for bundle, executable in ((app, 'Buckle'), (extension, 'BuckleFinder')):
             'Ad-hoc hardened application cannot load Sparkle without a library-validation exception')
 assert architectures[0] == architectures[1], 'App and extension architectures differ'
 framework = app / 'Contents/Frameworks/Sparkle.framework'
+permission_resources = app / 'Contents/Resources/PermissionFlow_PermissionFlow.bundle'
+assert permission_resources.is_dir(), 'PermissionFlow resources are missing'
+for language in ('en', 'zh-Hans', 'zh-Hant', 'ja', 'ko', 'de', 'fr', 'es'):
+    assert (permission_resources / 'Contents/Resources' / (language + '.lproj') / 'Localizable.strings').is_file(), (
+        f'Missing PermissionFlow localization: {language}')
+assert (app / 'Contents/Resources/ThirdPartyNotices.txt').is_file(), 'Third-party license notice is missing'
 assert framework.is_dir(), 'Sparkle framework is missing'
 sparkle_binary = framework / 'Versions/B/Sparkle'
 assert architectures[0] <= set(subprocess.check_output(['lipo', '-archs', str(sparkle_binary)], text=True).split())

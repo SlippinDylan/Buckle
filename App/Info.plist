@@ -14,6 +14,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Buckle</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 SlippinDylan Studio.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -26,8 +28,6 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
 	<key>SUPublicEDKey</key>
 	<string>GRP6q20+L2kseNhfnW3HNb5F4RlfYo68y9P4wq1cf8U=</string>
 	<key>BuckleUpdaterEnabled</key>

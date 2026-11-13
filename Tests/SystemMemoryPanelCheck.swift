@@ -6,13 +6,16 @@ import Foundation
 private final class FakePanelOperations: SystemMemoryPanelOperations {
     var value: CFPropertyList?
     var writes: [CFPropertyList?] = []
+    var permissionsFail = false
     var triggerFails = false
     var restoreFails = false
     var triggered = false
     var issue: MemoryPanelPermissionIssue?
     var permissionRequests: [Bool] = []
+    var automationGranted = true
     var onTrigger: (() -> Void)?
     var suspendsPermissionCheck = false
+    var suspendsManualRequest = false
     var permissionContinuation: CheckedContinuation<Void, Never>?
 
     init(original: CFPropertyList?) { value = original }
@@ -27,12 +30,14 @@ private final class FakePanelOperations: SystemMemoryPanelOperations {
         self.value = value
     }
 
-    func permissionIssue(requestPermission: Bool) async throws -> MemoryPanelPermissionIssue? {
+    func permissions(requestPermission: Bool) async throws -> MemoryPanelPermissions {
         permissionRequests.append(requestPermission)
-        if !requestPermission && suspendsPermissionCheck {
+        if (!requestPermission && suspendsPermissionCheck) || (requestPermission && suspendsManualRequest) {
             await withCheckedContinuation { permissionContinuation = $0 }
         }
-        return issue
+        if permissionsFail { throw NSError(domain: "Test", code: 3) }
+        return MemoryPanelPermissions(
+            accessibilityGranted: issue != .accessibility, automationGranted: automationGranted && issue != .automation)
     }
 
     func trigger() async throws {
@@ -155,6 +160,78 @@ enum SystemMemoryPanelCheck {
         permissionOperations.issue = nil
         await permissions.refreshPermissions()
         precondition(permissions.permissionIssue == nil && !permissionOperations.triggered)
+
+        let automationOperations = FakePanelOperations(original: nil)
+        automationOperations.issue = .accessibility
+        automationOperations.automationGranted = false
+        let automationLifecycle = ApplicationLifecycle()
+        let automation = SystemMemoryPanel(
+            operations: automationOperations, lifecycle: automationLifecycle, recovery: recovery)
+        await automation.refreshPermissions()
+        precondition(automation.permissionIssue == .accessibility && automation.automationGranted == false)
+        automationOperations.automationGranted = true
+        try await automation.requestAutomationPermission()
+        precondition(automation.permissionIssue == .accessibility && automation.automationGranted == true)
+        precondition(automationOperations.permissionRequests == [false, true])
+        precondition(automationOperations.writes.isEmpty && !automationOperations.triggered)
+        automationOperations.suspendsManualRequest = true
+        let manualRequest = Task { try await automation.requestAutomationPermission() }
+        while automationOperations.permissionContinuation == nil { await Task.yield() }
+        precondition(automation.isCheckingPermissions)
+        do {
+            try await automation.requestAutomationPermission()
+            preconditionFailure("Duplicate manual authorization must not prompt")
+        } catch CocoaError.userCancelled {}
+        var automationQuitReady = false
+        automationLifecycle.onReadyToTerminate = { automationQuitReady = true }
+        precondition(!automationLifecycle.requestTermination() && !automationQuitReady)
+        automationOperations.permissionContinuation?.resume()
+        do {
+            try await manualRequest.value
+            preconditionFailure("Authorization returning during shutdown must cancel its UI continuation")
+        } catch CocoaError.userCancelled {}
+        precondition(automationQuitReady && !automation.isCheckingPermissions)
+        do {
+            try await automation.requestAutomationPermission()
+            preconditionFailure("Authorization must not start during shutdown")
+        } catch CocoaError.userCancelled {}
+
+        // A quit during the foreground prompt must prevent all new system preference writes.
+        for permissionsFail in [false, true] {
+            for authorizationOnly in [false, true] {
+                let operations = FakePanelOperations(original: nil)
+                operations.suspendsManualRequest = true
+                operations.permissionsFail = permissionsFail
+                let lifecycle = ApplicationLifecycle()
+                let panel = SystemMemoryPanel(operations: operations, lifecycle: lifecycle, recovery: recovery)
+                var replies = 0
+                lifecycle.onReadyToTerminate = { replies += 1 }
+                let request = Task {
+                    if authorizationOnly {
+                        try await panel.requestAutomationPermission()
+                        return true
+                    }
+                    return try await panel.show(requestPermission: true)
+                }
+                while operations.permissionContinuation == nil { await Task.yield() }
+                precondition(!lifecycle.requestTermination())
+                operations.permissionContinuation?.resume()
+                if authorizationOnly {
+                    do {
+                        _ = try await request.value
+                        preconditionFailure("Shutdown must cancel authorization, including a failed prompt")
+                    } catch CocoaError.userCancelled {}
+                    precondition(panel.permissionError == nil)
+                } else {
+                    let opened = try await request.value
+                    precondition(!opened)
+                }
+                precondition(replies == 1 && !panel.isOpening && !panel.isCheckingPermissions)
+                precondition(operations.writes.isEmpty && !operations.triggered)
+                let pending = try recovery.load()
+                precondition(pending == nil)
+            }
+        }
 
         for quitWhileWaiting in [false, true] {
             let operations = FakePanelOperations(original: nil)

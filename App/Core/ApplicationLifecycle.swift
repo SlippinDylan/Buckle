@@ -1,9 +1,10 @@
+import Foundation
 import Observation
 
 @MainActor @Observable
 final class ApplicationLifecycle {
     enum Operation: Hashable {
-        case memoryPanel, memoryPermissions, mouseReset
+        case memoryPanel, memoryPermissions, mouseReset, finderAction, menuBarRestart
     }
 
     enum RecoveryDecision { case retry, cancel, quit }
@@ -15,6 +16,11 @@ final class ApplicationLifecycle {
     @ObservationIgnored var onReadyToTerminate: (() -> Void)?
 
     func isActive(_ operation: Operation) -> Bool { operations.contains(operation) }
+
+    // Recovery failures have their own quit decision; ordinary action errors must not interrupt it.
+    func shouldPresentUserActionError(_ error: Error) -> Bool {
+        !terminationRequested && (error as? CocoaError)?.code != .userCancelled
+    }
 
     func begin(_ operation: Operation) -> Bool {
         guard !terminationRequested else { return false }
