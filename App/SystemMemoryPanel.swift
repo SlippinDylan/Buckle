@@ -239,14 +239,159 @@ private final class NativeMemoryPanelOperations: SystemMemoryPanelOperations {
     }
 
     func trigger() async throws {
+        let messages = try MemoryPanelWindowVerification.warningMessages(
+            resources: URL(fileURLWithPath: "/System/Library/CoreServices/loginwindow.app/Contents/Resources"))
+        // Do not toggle a panel that is already open. The warning distinguishes it from ForceQuitPanel.
+        if try await runner.isPanelVisible(
+            warningMessages: messages, deadline: .now.advanced(by: .seconds(1)))
+        {
+            return
+        }
+        // Allow loginwindow to observe the synchronized preference before it handles the shortcut.
         try await Task.sleep(for: .seconds(1))
         try await runner.trigger()
-        // loginwindow handles the shortcut asynchronously, before the temporary preference is restored.
-        try await Task.sleep(for: .seconds(3))
+        try await MemoryPanelWindowVerification.wait { deadline in
+            try await self.runner.isPanelVisible(warningMessages: messages, deadline: deadline)
+        }
+    }
+}
+
+@MainActor
+enum MemoryPanelWindowVerification {
+    static func warningMessages(resources: URL) throws -> Set<String> {
+        // This is part of the private loginwindow integration. Read its own translations so app
+        // language overrides cannot make us confuse LowMemoryPanel with the ordinary Force Quit panel.
+        let key = "100009.title"
+        var messages = Set<String>()
+        let table = resources.appendingPathComponent("LowMemoryPanel.loctable")
+        do {
+            let data = try Data(contentsOf: table)
+            guard let languages = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            else { throw CocoaError(.propertyListReadCorrupt) }
+            for value in languages.values {
+                if let translation = value as? [String: Any], let text = translation[key] as? String, !text.isEmpty {
+                    messages.insert(text)
+                }
+            }
+        } catch CocoaError.fileReadNoSuchFile {
+            // Older loginwindow bundles use separate strings files instead of a shared loctable.
+            for directory in try FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
+            where directory.pathExtension == "lproj" {
+                let data: Data
+                do {
+                    data = try Data(contentsOf: directory.appendingPathComponent("LowMemoryPanel.strings"))
+                } catch CocoaError.fileReadNoSuchFile { continue }
+                guard
+                    let translations = try PropertyListSerialization.propertyList(from: data, format: nil)
+                        as? [String: String]
+                else { throw CocoaError(.propertyListReadCorrupt) }
+                if let text = translations[key], !text.isEmpty { messages.insert(text) }
+            }
+        }
+        guard !messages.isEmpty else {
+            throw NSError(
+                domain: "Buckle.MemoryPanel", code: 3,
+                userInfo: [NSLocalizedDescriptionKey: localized("memory.unsupported")])
+        }
+        return messages
+    }
+
+    static func wait(
+        timeout: Duration = .seconds(10),
+        isVisible: (ContinuousClock.Instant) async throws -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while true {
+            try Task.checkCancellation()
+            try checkDeadline(deadline)
+            let visible = try await isVisible(deadline)
+            try Task.checkCancellation()
+            try checkDeadline(deadline)
+            if visible { return }
+            try await Task.sleep(until: min(.now.advanced(by: .milliseconds(100)), deadline), clock: .continuous)
+        }
+    }
+
+    private static func checkDeadline(_ deadline: ContinuousClock.Instant) throws {
+        guard ContinuousClock.now < deadline else {
+            throw NSError(
+                domain: "Buckle.MemoryPanel", code: 4,
+                userInfo: [NSLocalizedDescriptionKey: localized("memory.not.visible")])
+        }
     }
 }
 
 private actor MemoryPanelTrigger {
+    func isPanelVisible(warningMessages: Set<String>, deadline: ContinuousClock.Instant) async throws -> Bool {
+        let scanDeadline = min(deadline, .now.advanced(by: .seconds(1)))
+        let pids = await MainActor.run {
+            NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.loginwindow").map(
+                \.processIdentifier)
+        }
+        for pid in pids {
+            try Task.checkCancellation()
+            guard ContinuousClock.now < scanDeadline else { return false }
+            let application = AXUIElementCreateApplication(pid)
+            guard
+                let windows = try attribute(kAXWindowsAttribute, of: application, deadline: scanDeadline)
+                    as? [AXUIElement]
+            else { continue }
+            // Breadth-first traversal reaches the warning before potentially large application tables.
+            var elements = windows
+            var index = 0
+            while index < elements.count, ContinuousClock.now < scanDeadline {
+                let element = elements[index]
+                index += 1
+                if let role = try attribute(kAXRoleAttribute, of: element, deadline: scanDeadline) as? String,
+                    role == kAXStaticTextRole,
+                    let text = try attribute(kAXValueAttribute, of: element, deadline: scanDeadline) as? String,
+                    warningMessages.contains(text)
+                {
+                    return true
+                }
+                if let children = try attribute(kAXChildrenAttribute, of: element, deadline: scanDeadline)
+                    as? [AXUIElement]
+                {
+                    elements.append(contentsOf: children)
+                }
+            }
+        }
+        return false
+    }
+
+    private func attribute(_ name: String, of element: AXUIElement, deadline: ContinuousClock.Instant) throws
+        -> CFTypeRef?
+    {
+        try Task.checkCancellation()
+        let remaining = ContinuousClock.now.duration(to: deadline)
+        guard remaining > .zero else { return nil }
+        let components = remaining.components
+        let seconds = Float(components.seconds) + Float(components.attoseconds) / 1e18
+        // AX timeouts belong to individual objects, not the application or its descendants.
+        let timeoutResult = AXUIElementSetMessagingTimeout(element, min(0.25, seconds))
+        guard timeoutResult == .success else { throw accessibilityError(timeoutResult) }
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(element, name as CFString, &value)
+        try Task.checkCancellation()
+        guard ContinuousClock.now < deadline else { return nil }
+        switch result {
+        case .success: return value
+        // Unsupported values are normal; stale or temporarily unresponsive windows are retried by the poll.
+        case .attributeUnsupported, .noValue, .invalidUIElement, .cannotComplete: return nil
+        default: throw accessibilityError(result)
+        }
+    }
+
+    private func accessibilityError(_ result: AXError) -> NSError {
+        NSError(
+            domain: "Buckle.MemoryPanel.Accessibility", code: Int(result.rawValue),
+            userInfo: [
+                NSLocalizedDescriptionKey: result == .apiDisabled
+                    ? localized("memory.access.required")
+                    : localized("memory.not.visible") + " (AXError \(result.rawValue))"
+            ])
+    }
+
     func automationPermissionIssue(requestPermission: Bool) throws -> MemoryPanelPermissionIssue? {
         var target = AEAddressDesc()
         let identifier = "com.apple.systemevents"

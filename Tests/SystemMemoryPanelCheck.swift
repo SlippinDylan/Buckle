@@ -53,6 +53,7 @@ private final class FakePanelOperations: SystemMemoryPanelOperations {
 @main
 enum SystemMemoryPanelCheck {
     @MainActor static func main() async throws {
+        try await verifyWindowConfirmation()
         let event = MemoryPanelShortcut.event()
         precondition(event.eventClass == 0x7072_6373 && event.eventID == 0x6b63_6f64)
         precondition(event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.int32Value == 53)
@@ -292,4 +293,85 @@ enum SystemMemoryPanelCheck {
             "Memory panel recovery across restarts, permission denial and error paths verified without opening a window."
         )
     }
+    @MainActor private static func verifyWindowConfirmation() async throws {
+        let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer {
+            do { try FileManager.default.removeItem(at: root) } catch {
+                preconditionFailure("Cannot remove test resources: \(error)")
+            }
+        }
+        let table = root.appendingPathComponent("LowMemoryPanel.loctable")
+        let translations = [
+            "en": ["100009.title": "Memory warning"], "ja": ["100009.title": "メモリの警告"],
+            "metadata": ["other": "Not a warning"],
+        ]
+        try PropertyListSerialization.data(fromPropertyList: translations, format: .binary, options: 0).write(to: table)
+        let messages = try MemoryPanelWindowVerification.warningMessages(resources: root)
+        precondition(messages == ["Memory warning", "メモリの警告"])
+        try FileManager.default.removeItem(at: table)
+        let legacy = root.appendingPathComponent("en.lproj")
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        let legacyTable = legacy.appendingPathComponent("LowMemoryPanel.strings")
+        try PropertyListSerialization.data(
+            fromPropertyList: ["100009.title": "Legacy warning"], format: .xml, options: 0
+        )
+        .write(to: legacyTable)
+        let legacyMessages = try MemoryPanelWindowVerification.warningMessages(resources: root)
+        precondition(legacyMessages == ["Legacy warning"])
+        try FileManager.default.removeItem(at: legacyTable)
+        do {
+            _ = try MemoryPanelWindowVerification.warningMessages(resources: root)
+            preconditionFailure("Unknown system resources must not imply support")
+        } catch { precondition((error as NSError).code == 3) }
+        var polls = 0
+        var sharedDeadline: ContinuousClock.Instant?
+        try await MemoryPanelWindowVerification.wait { deadline in
+            if let sharedDeadline { precondition(deadline == sharedDeadline) }
+            sharedDeadline = deadline
+            polls += 1
+            return polls == 2
+        }
+        precondition(polls == 2)
+        do {
+            try await MemoryPanelWindowVerification.wait(timeout: .milliseconds(10)) { _ in
+                try await Task.sleep(for: .milliseconds(50))
+                return true
+            }
+            preconditionFailure("A result received after the deadline must not succeed")
+        } catch { precondition((error as NSError).code == 4) }
+        do {
+            try await MemoryPanelWindowVerification.wait(timeout: .zero) { _ in
+                preconditionFailure("An expired check must not query the system")
+            }
+            preconditionFailure("An absent panel must fail")
+        } catch { precondition((error as NSError).code == 4) }
+        var waiting = false
+        let cancelled = Task { @MainActor in
+            try await MemoryPanelWindowVerification.wait { _ in
+                waiting = true
+                return false
+            }
+        }
+        while !waiting { await Task.yield() }
+        cancelled.cancel()
+        do {
+            try await cancelled.value
+            preconditionFailure("Cancelled checks must stop")
+        } catch { precondition(error is CancellationError) }
+        var query: CheckedContinuation<Bool, Never>?
+        let cancelledDuringQuery = Task { @MainActor in
+            try await MemoryPanelWindowVerification.wait { _ in
+                await withCheckedContinuation { query = $0 }
+            }
+        }
+        while query == nil { await Task.yield() }
+        cancelledDuringQuery.cancel()
+        query?.resume(returning: true)
+        do {
+            try await cancelledDuringQuery.value
+            preconditionFailure("A cancelled query must not return success")
+        } catch { precondition(error is CancellationError) }
+    }
+
 }
