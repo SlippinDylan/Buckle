@@ -1,0 +1,70 @@
+name: Package
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Check packaging switch
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      enabled: ${{ steps.manifest.outputs.enabled }}
+      version: ${{ steps.manifest.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read release manifest
+        id: manifest
+        run: |
+          node .github/scripts/sync-version.mjs --check
+          enabled="$(node .github/scripts/sync-version.mjs --packaging-enabled)"
+          version="$(node -p 'JSON.parse(require("fs").readFileSync("Config/Release/manifest.json", "utf8")).version')"
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if test "$enabled" = false; then
+            echo 'Packaging is disabled in Config/Release/manifest.json. No DMG or artifact will be produced.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+  package:
+    name: Build test DMG
+    needs: gate
+    if: github.ref == 'refs/heads/main' && needs.gate.outputs.enabled == 'true'
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate source before packaging
+        run: bash Scripts/check.sh
+      - name: Build Universal 2 test package
+        env:
+          BUCKLE_VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          xcodebuild build -project Buckle.xcodeproj -scheme Buckle \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
+            -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+            BUCKLE_UPDATER_ENABLED=NO
+          app=build/DerivedData/Build/Products/Release/Buckle.app
+          lipo "$app/Contents/MacOS/Buckle" -verify_arch arm64 x86_64
+          bash Scripts/verify-bundle.sh "$app"
+          bash Scripts/create-dmg.sh "$app" "build/Buckle-$BUCKLE_VERSION-test.dmg"
+          (cd build && shasum -a 256 "Buckle-$BUCKLE_VERSION-test.dmg" > SHA256SUMS)
+          echo 'Universal 2 test package with ad-hoc signature. Not notarized; not a public release.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Buckle-${{ needs.gate.outputs.version }}-test-${{ github.sha }}
+          path: |
+            build/Buckle-*-test.dmg
+            build/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7

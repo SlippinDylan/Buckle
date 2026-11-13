@@ -1,0 +1,131 @@
+name: Publish Update Feed
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable Buckle tag to synchronize
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: buckle-update-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+    steps:
+      - name: Checkout trusted automation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Checkout published source metadata
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          path: published-source
+          persist-credentials: false
+      - name: Validate release and packaging switch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import { readReleaseManifest } from './.github/scripts/sync-version.mjs';
+          import { appendFile } from 'node:fs/promises';
+          const manifest = await readReleaseManifest({ rootDirectory: 'published-source' });
+          if (!manifest.packagingEnabled || process.env.TAG !== `v${manifest.version}`) {
+            throw Error('Expected an enabled release manifest and its matching stable version tag.');
+          }
+          await appendFile(process.env.GITHUB_ENV,
+            `VERSION=${manifest.version}\nBUILD=${manifest.build}\nDMG_NAME=Buckle-${manifest.version}.dmg\n`);
+          JS
+          test "$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq '.visibility')" = PUBLIC
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = false
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')" = false
+      - name: Download published update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/buckle-updates"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$DMG_NAME" --dir "$RUNNER_TEMP/buckle-updates"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' \
+            > "$RUNNER_TEMP/buckle-updates/${DMG_NAME%.dmg}.md"
+      - name: Resolve pinned Sparkle tools
+        run: bash Scripts/resolve-dependencies.sh
+      - name: Verify published app identity and update configuration
+        run: |
+          set -euo pipefail
+          mount_root=$(mktemp -d "$RUNNER_TEMP/buckle-mount.XXXXXX")
+          mkdir "$mount_root/volume"
+          hdiutil attach "$RUNNER_TEMP/buckle-updates/$DMG_NAME" -readonly -nobrowse -mountpoint "$mount_root/volume"
+          trap 'hdiutil detach "$mount_root/volume" && rm -rf "$mount_root"' EXIT
+          app="$mount_root/volume/Buckle.app"
+          bash Scripts/verify-bundle.sh "$app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = "$BUILD"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :BuckleUpdaterEnabled' "$app/Contents/Info.plist")" = YES
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")" = "$SPARKLE_PUBLIC_KEY"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' App/Info.plist)" = "$SPARKLE_PUBLIC_KEY"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" = 'https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml'
+      - name: Checkout update host
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: SlippinDylan/homebrew-tap
+          ref: main
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      - name: Generate and verify signed update feed
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          archive_dir="$RUNNER_TEMP/buckle-updates"
+          feed=homebrew-tap/docs/buckle/appcast.xml
+          if [[ -f "$feed" ]]; then cp "$feed" "$archive_dir/appcast.xml"; fi
+          bash Scripts/prepare-update.sh "$archive_dir" \
+            "https://github.com/SlippinDylan/Buckle/releases/download/$TAG/"
+          python3 - "$archive_dir/appcast.xml" <<'PY'
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          namespace = '{http://www.andymatuschak.org/xml-namespaces/sparkle}'
+          items = root.findall('./channel/item')
+          expected = 'https://github.com/SlippinDylan/Buckle/releases/download/' + os.environ['TAG'] + '/' + os.environ['DMG_NAME']
+          matches = [item for item in items if item.find('enclosure') is not None and item.find('enclosure').get('url') == expected]
+          assert len(matches) == 1, 'Expected exactly one published update enclosure'
+          item = matches[0]
+          assert item.findtext(namespace + 'version') == os.environ['BUILD']
+          assert item.findtext(namespace + 'shortVersionString') == os.environ['VERSION']
+          assert item.find('enclosure').get(namespace + 'edSignature')
+          PY
+          mkdir -p "$(dirname "$feed")"
+          cp "$archive_dir/appcast.xml" "$feed"
+      - name: Publish feed to Homebrew tap
+        run: |
+          set -euo pipefail
+          git -C homebrew-tap config user.name 'github-actions[bot]'
+          git -C homebrew-tap config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C homebrew-tap add docs/buckle/appcast.xml
+          if git -C homebrew-tap diff --cached --quiet; then exit 0; fi
+          git -C homebrew-tap diff --cached --check
+          git -C homebrew-tap commit -m "chore: update Buckle feed to $VERSION"
+          for attempt in 1 2 3; do
+            if git -C homebrew-tap push origin main; then exit 0; fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            git -C homebrew-tap fetch origin main
+            git -C homebrew-tap rebase origin/main
+          done
