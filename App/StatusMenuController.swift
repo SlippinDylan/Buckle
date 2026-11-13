@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 
 @MainActor
 final class StatusMenuController: NSObject, NSMenuDelegate {
@@ -66,6 +67,9 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        let signposter = OSSignposter(subsystem: "studio.slippindylan.Buckle", category: "Menu")
+        let interval = signposter.beginInterval("Menu Build")
+        defer { signposter.endInterval("Menu Build", interval) }
         menu.removeAllItems()
         actionTargets.removeAll(keepingCapacity: true)
         menu.autoenablesItems = false
