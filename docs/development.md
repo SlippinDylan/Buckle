@@ -8,6 +8,12 @@ Sparkle 2.10.0 通过 Xcode SPM 依赖仅链接到主应用，锁文件纳入 Gi
 
 版本、构建号与安装包开关的唯一编辑入口是 `Config/Release/manifest.json`。`node .github/scripts/sync-version.mjs` 更新 `Config/Generated/Version.xcconfig`，两个构建配置共同包含它。不要在 Xcode Build Settings 再设置版本覆盖值。使用 `Scripts/build.sh` 时自动同步；CI 用 `--check` 检测遗漏。
 
+## README 与截图
+
+仓库首页 `README.md` 使用英文；`docs/README.<语言>.md` 提供简体中文（`zh-CN`）、繁体中文（`zh-TW`）、日语（`ja`）、韩语（`ko`）、德语（`de`）、法语（`fr`）、西班牙语（`es`）版本，与 App 的八种语言对应。多语言同步要求以根目录 [AGENTS.md](../AGENTS.md) 的 README 规则为准；修改共享内容时必须在同一变更中同步其他语言版本。开发细节仍集中在本文。
+
+所有语言版本共用 `docs/images/readme/` 下真实运行界面的英文截图，不单独维护各语言图片。截图包含主菜单、浏览器语言子菜单、Finder 右键菜单和通用／权限设置页；保留真实权限与禁用状态，不在图片中伪造界面文字。更换截图时避免包含个人窗口内容，并恢复为拍摄临时调整的语言及功能开关。
+
 ## 检查与构建
 
 `bash Scripts/check.sh` 包含核心单元测试、Finder 配置与 URL 路由测试、真实沙盒配置读写权限检查、Release 签名下实际加载 Sparkle 的检查、更新配置与密钥匹配测试、官方 Sparkle 工具生成签名清单及拒绝篡改的检查、Swift 6 主应用和扩展源码类型检查、鼠标重置及部分退出失败回滚检查、系统内存窗口事件构造、权限拒绝和跨实例偏好恢复检查、格式、多语言、版本配置、通知脚本测试及 plist 检查。它通过 `Scripts/resolve-dependencies.sh` 解析锁定的 SPM 依赖，需要网络或已有缓存；不会启动应用界面或完整构建 Buckle。更新工具检查只生成临时测试归档，不使用用户私钥，不启动测试程序。
