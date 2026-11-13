@@ -163,6 +163,7 @@ enum MouseResetCheck {
             await reset.run()
             precondition(!reset.isPresented)
         }
+        do { try await verifyNormalResetOnlyRestartsRunningTools() } catch { preconditionFailure("\(error)") }
         // Exercise the native reset implementation with only its OS boundary substituted.
         let workspace = FakeResetWorkspace()
         let moom = "com.manytricks.Moom"
@@ -261,6 +262,42 @@ enum MouseResetCheck {
         print(
             "Mouse reset sequence, failures, recovery, duplicate prevention, and status symbols verified using fake operations."
         )
+    }
+
+    @MainActor private static func verifyNormalResetOnlyRestartsRunningTools() async throws {
+        let moom = "com.manytricks.Moom"
+        let betterMouse = "com.naotanhaocan.BetterMouse"
+        let workspace = FakeResetWorkspace()
+        workspace.running[moom] = FakeRunningTool(moom)
+        workspace.running[betterMouse] = FakeRunningTool(betterMouse)
+        let reset = NativeMouseReset(workspace: workspace)
+        // Exercise only application steps; never execute preference or privileged system commands.
+        for step: MouseResetStep in [.stoppingWindowTools, .restartingInputTools, .restartingWindowTools, .checking] {
+            try await reset.perform(step)
+        }
+        precondition(
+            workspace.launches == [betterMouse, moom], "A normal reset must not start installed but closed tools")
+        try await reset.restoreApps()
+        precondition(workspace.launches == [betterMouse, moom], "Successful resets must leave no pending restarts")
+
+        let closedWorkspace = FakeResetWorkspace()
+        let closedReset = NativeMouseReset(workspace: closedWorkspace)
+        for step: MouseResetStep in [.stoppingWindowTools, .restartingInputTools, .restartingWindowTools, .checking] {
+            try await closedReset.perform(step)
+        }
+        precondition(closedWorkspace.launches.isEmpty, "Resetting services must not open any initially closed tools")
+
+        let lateWorkspace = FakeResetWorkspace()
+        lateWorkspace.running[moom] = FakeRunningTool(moom)
+        let lateReset = NativeMouseReset(workspace: lateWorkspace)
+        try await lateReset.perform(.stoppingWindowTools)
+        let newlyOpened = FakeRunningTool(betterMouse)
+        lateWorkspace.running[betterMouse] = newlyOpened
+        try await lateReset.perform(.restartingInputTools)
+        try await lateReset.perform(.restartingWindowTools)
+        try await lateReset.perform(.checking)
+        precondition(!newlyOpened.isTerminated, "A reset must not stop a tool opened after its running snapshot")
+        precondition(lateWorkspace.launches == [moom])
     }
 
     @MainActor private static func verifyTerminationRecovery() async throws {

@@ -171,7 +171,12 @@ final class NativeMouseReset: MouseResetOperations {
         }
     }
 
-    private var tools: [Tool] = []
+    private struct RunningTool {
+        let tool: Tool
+        let applications: [any MouseResetApplication]
+    }
+
+    private var runningTools: [RunningTool] = []
     private var stopRequests: [(tool: Tool, application: any MouseResetApplication)] = []
     private let runner = ResetCommandRunner()
     private let workspace: any MouseResetWorkspace
@@ -193,12 +198,18 @@ final class NativeMouseReset: MouseResetOperations {
                 ("com.naotanhaocan.BetterMouse", "BetterMouse", true),
                 ("cn.better365.iShotPro", "iShot Pro", true),
             ]
-            tools = candidates.compactMap { id, name, input in
+            let tools = candidates.compactMap { id, name, input -> Tool? in
                 guard let url = workspace.applicationURL(for: id) else { return nil }
                 return Tool(id: id, name: name, input: input, url: url)
             }
             guard !tools.isEmpty else { throw failure(localized("mouse.no.tools")) }
-            try await stop(tools.filter { !$0.input })
+            runningTools = tools.compactMap { tool in
+                let applications = tool.bundleIdentifiers.flatMap { workspace.runningApplications(for: $0) }
+                    .filter { !$0.isTerminated }
+                guard !applications.isEmpty else { return nil }
+                return RunningTool(tool: tool, applications: applications)
+            }
+            try await stop(runningTools.filter { !$0.tool.input })
         case .refreshingPreferences:
             try await runner.run("/usr/bin/killall", arguments: ["-u", String(getuid()), "cfprefsd"])
         case .refreshingPermissions:
@@ -209,13 +220,14 @@ final class NativeMouseReset: MouseResetOperations {
                     "-e", "do shell script \"/usr/bin/killall tccd\" with administrator privileges",
                 ])
         case .restartingInputTools:
-            let inputTools = tools.filter(\.input)
+            let inputTools = runningTools.filter { $0.tool.input }
             try await stop(inputTools)
-            try await launch(inputTools)
+            try await restoreApps(inputTools.map(\.tool))
         case .restartingWindowTools:
-            try await launch(tools.filter { !$0.input })
+            try await restoreApps(runningTools.filter { !$0.tool.input }.map(\.tool))
         case .checking:
-            for tool in tools {
+            for snapshot in runningTools {
+                let tool = snapshot.tool
                 guard
                     workspace.runningApplications(for: tool.id).contains(where: {
                         !$0.isTerminated
@@ -228,6 +240,10 @@ final class NativeMouseReset: MouseResetOperations {
     }
 
     func restoreApps() async throws {
+        try await restoreApps(runningTools.map(\.tool))
+    }
+
+    private func restoreApps(_ tools: [Tool]) async throws {
         var failures: [String] = []
         for tool in tools {
             let pending = stopRequests.filter { $0.tool.id == tool.id }.map(\.application)
@@ -240,20 +256,18 @@ final class NativeMouseReset: MouseResetOperations {
         if !failures.isEmpty { throw failure(failures.joined(separator: "\n")) }
     }
 
-    private func stop(_ tools: [Tool]) async throws {
+    private func stop(_ snapshots: [RunningTool]) async throws {
         var failures: [String] = []
-        requesting: for tool in tools {
-            for identifier in tool.bundleIdentifiers {
-                for app in workspace.runningApplications(for: identifier) where !app.isTerminated {
-                    if app.terminate() {
-                        stopRequests.append((tool, app))
-                    } else if !app.isTerminated {
-                        failures.append(
-                            localizedFormat(
-                                "quit.failed",
-                                app.localizedName ?? app.bundleIdentifier ?? String(app.processIdentifier)))
-                        break requesting
-                    }
+        requesting: for snapshot in snapshots {
+            for app in snapshot.applications where !app.isTerminated {
+                if app.terminate() {
+                    stopRequests.append((snapshot.tool, app))
+                } else if !app.isTerminated {
+                    failures.append(
+                        localizedFormat(
+                            "quit.failed",
+                            app.localizedName ?? app.bundleIdentifier ?? String(app.processIdentifier)))
+                    break requesting
                 }
             }
         }
