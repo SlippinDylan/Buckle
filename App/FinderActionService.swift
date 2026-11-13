@@ -4,7 +4,7 @@ import AppKit
 final class FinderActionService {
     private static let moveRunner = FinderMoveRunner()
     private let lifecycle: ApplicationLifecycle
-    private let airDrop = AirDropService()
+    private let airDrop: any AirDropSending
     private let openTerminal: (URL) async throws -> Void
     private let configuration: () throws -> FinderConfiguration
     private let pasteboard: NSPasteboard
@@ -13,6 +13,7 @@ final class FinderActionService {
 
     init(
         lifecycle: ApplicationLifecycle,
+        airDrop: any AirDropSending = AirDropService(),
         openTerminal: @escaping (URL) async throws -> Void = FinderActionService.launchTerminal,
         configuration: @escaping () throws -> FinderConfiguration = { try FinderConfigurationStore.standard().load() },
         pasteboard: NSPasteboard = .general,
@@ -20,6 +21,7 @@ final class FinderActionService {
         move: @escaping @MainActor (FinderMovePlan) async throws -> Void = FinderActionService.performMove
     ) {
         self.lifecycle = lifecycle
+        self.airDrop = airDrop
         self.openTerminal = openTerminal
         self.configuration = configuration
         self.pasteboard = pasteboard
@@ -41,7 +43,7 @@ final class FinderActionService {
         defer { lifecycle.end(.finderAction) }
         switch request.action {
         case .airDrop:
-            try airDrop.sendFiles(request.files)
+            try await airDrop.sendFiles(request.files)
         case .terminal:
             guard let directory = try FinderMenuContext.items(request.files).directory() else {
                 throw CocoaError(

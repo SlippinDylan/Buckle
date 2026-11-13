@@ -1,5 +1,13 @@
 import AppKit
 
+@MainActor
+private final class FakeAirDrop: AirDropSending {
+    var completion: CheckedContinuation<Void, Error>?
+    func sendFiles(_ urls: [URL]) async throws {
+        try await withCheckedThrowingContinuation { completion = $0 }
+    }
+}
+
 @main
 enum FinderActionCheck {
     @MainActor static func main() async throws {
@@ -12,6 +20,29 @@ enum FinderActionCheck {
         }
         let enabledConfiguration = FinderConfiguration(
             airDropEnabled: true, terminalEnabled: true, copyPathEnabled: true, moveEnabled: true)
+        for error: Error? in [nil, CocoaError(.userCancelled), CocoaError(.fileReadNoPermission)] {
+            let lifecycle = ApplicationLifecycle()
+            let airDrop = FakeAirDrop()
+            let service = FinderActionService(
+                lifecycle: lifecycle, airDrop: airDrop, configuration: { enabledConfiguration })
+            let sharing = Task {
+                do {
+                    try await service.handle(FinderActionRequest(action: .airDrop, files: [root]))
+                } catch {
+                    precondition(
+                        !lifecycle.shouldPresentUserActionError(error), "Quit must suppress late sharing errors")
+                }
+            }
+            while airDrop.completion == nil { await Task.yield() }
+            var terminationReady = false
+            lifecycle.onReadyToTerminate = { terminationReady = true }
+            precondition(lifecycle.isActive(.finderAction))
+            precondition(!lifecycle.requestTermination() && !terminationReady)
+            guard let completion = airDrop.completion else { preconditionFailure("Sharing did not start") }
+            if let error { completion.resume(throwing: error) } else { completion.resume() }
+            await sharing.value
+            precondition(terminationReady && !lifecycle.isActive(.finderAction))
+        }
         let lifecycle = ApplicationLifecycle()
         var opened: [URL] = []
         let service = FinderActionService(
