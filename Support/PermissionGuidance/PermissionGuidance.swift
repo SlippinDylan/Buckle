@@ -9,9 +9,27 @@ public final class PermissionGuidance {
     private let controller: PermissionFlowController
     private let localeIdentifier: String
 
+    // Register the SwiftPM resource bundle before upstream caches its lookup. The native test
+    // runner lives in Xcode's toolchain, while resources sit beside the loaded test bundle.
+    // Bundle.allBundles includes dynamically created resource bundles without loading executable code.
+    private static let registeredResources: Bundle? = {
+        let host = Bundle(for: PermissionGuidance.self)
+        let directories = [host.resourceURL, host.bundleURL.deletingLastPathComponent(), Bundle.main.resourceURL]
+        for directory in directories.compactMap({ $0 }) {
+            if let bundle = Bundle(
+                url: directory.appendingPathComponent(
+                    PermissionFlowResources.resourceBundleName + ".bundle"))
+            {
+                return bundle
+            }
+        }
+        return nil
+    }()
+
     public init(
         appURL: URL = Bundle.main.bundleURL, localeIdentifier: String? = Bundle.main.preferredLocalizations.first
     ) {
+        _ = Self.registeredResources
         self.localeIdentifier = localeIdentifier ?? "en"
         controller = PermissionFlow.makeController(
             configuration: .init(
