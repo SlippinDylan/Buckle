@@ -1,4 +1,5 @@
 import AppKit
+import Synchronization
 
 struct FinderMovePlan: Equatable, Sendable {
     let sources: [URL]
@@ -50,28 +51,20 @@ struct FinderMovePlan: Equatable, Sendable {
 }
 
 actor FinderMoveRunner {
-    func move(_ plan: FinderMovePlan) throws {
+    private let coordinationTimeout: Duration
+
+    init(coordinationTimeout: Duration = .seconds(15)) {
+        self.coordinationTimeout = coordinationTimeout
+    }
+
+    func move(_ plan: FinderMovePlan) async throws {
         do {
+            try Task.checkCancellation()
             try plan.validate()
             for source in plan.sources {
                 try Task.checkCancellation()
                 let target = plan.destination.appendingPathComponent(source.lastPathComponent)
-                let coordinator = NSFileCoordinator()
-                var coordinationError: NSError?
-                var operationError: Error?
-                coordinator.coordinate(
-                    writingItemAt: source, options: .forMoving,
-                    writingItemAt: target, options: [], error: &coordinationError
-                ) { coordinatedSource, coordinatedTarget in
-                    do {
-                        // FileManager preserves a source symlink and refuses existing destinations.
-                        coordinator.item(at: coordinatedSource, willMoveTo: coordinatedTarget)
-                        try FileManager.default.moveItem(at: coordinatedSource, to: coordinatedTarget)
-                        coordinator.item(at: coordinatedSource, didMoveTo: coordinatedTarget)
-                    } catch { operationError = error }
-                }
-                if let coordinationError { throw coordinationError }
-                if let operationError { throw operationError }
+                try await FinderMoveCoordination().move(source, to: target, timeout: coordinationTimeout)
             }
         } catch {
             throw NSError(
@@ -81,6 +74,90 @@ actor FinderMoveRunner {
                     NSUnderlyingErrorKey: error,
                 ])
         }
+    }
+}
+
+private final class FinderMoveCoordination: Sendable {
+    private enum StopReason {
+        case cancelled, timedOut
+
+        var error: Error {
+            switch self {
+            case .cancelled: CocoaError(.userCancelled)
+            case .timedOut: URLError(.timedOut)
+            }
+        }
+    }
+
+    private struct State {
+        let coordinator = NSFileCoordinator()
+        var isWaiting = true
+        var stopReason: StopReason?
+    }
+
+    // Coordination starts under the lock; only cancel(), explicitly thread-safe in Foundation, crosses threads.
+    private let state = Mutex(State())
+
+    func move(_ source: URL, to target: URL, timeout: Duration) async throws {
+        let waitingDeadline = ContinuousClock.now.advanced(by: timeout)
+        let deadline = Task {
+            do { try await Task.sleep(until: waitingDeadline, clock: .continuous) } catch { return }
+            stopWaiting(.timedOut)
+        }
+        defer { deadline.cancel() }
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let intents = [
+                    NSFileAccessIntent.writingIntent(with: source, options: .forMoving),
+                    NSFileAccessIntent.writingIntent(with: target, options: []),
+                ]
+                let queue = OperationQueue()
+                queue.maxConcurrentOperationCount = 1
+                state.withLock { state in
+                    if let reason = state.stopReason {
+                        continuation.resume(throwing: reason.error)
+                        return
+                    }
+                    state.coordinator.coordinate(with: intents, queue: queue) { error in
+                        let result = self.state.withLock { state -> (NSFileCoordinator, StopReason?) in
+                            if state.stopReason == nil, ContinuousClock.now >= waitingDeadline {
+                                state.stopReason = .timedOut
+                            }
+                            state.isWaiting = false
+                            return (state.coordinator, state.stopReason)
+                        }
+                        if let reason = result.1 {
+                            continuation.resume(throwing: reason.error)
+                            return
+                        }
+                        if let error {
+                            continuation.resume(throwing: error)
+                            return
+                        }
+                        do {
+                            // Once admitted, finish the move even if cancellation arrives during copying.
+                            let coordinatedSource = intents[0].url
+                            let coordinatedTarget = intents[1].url
+                            result.0.item(at: coordinatedSource, willMoveTo: coordinatedTarget)
+                            try FileManager.default.moveItem(at: coordinatedSource, to: coordinatedTarget)
+                            result.0.item(at: coordinatedSource, didMoveTo: coordinatedTarget)
+                            continuation.resume()
+                        } catch { continuation.resume(throwing: error) }
+                    }
+                }
+            }
+        } onCancel: {
+            self.stopWaiting(.cancelled)
+        }
+    }
+
+    private func stopWaiting(_ reason: StopReason) {
+        let coordinator = state.withLock { state -> NSFileCoordinator? in
+            guard state.isWaiting, state.stopReason == nil else { return nil }
+            state.stopReason = reason
+            return state.coordinator
+        }
+        coordinator?.cancel()
     }
 }
 
