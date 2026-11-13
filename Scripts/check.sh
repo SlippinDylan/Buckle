@@ -16,7 +16,10 @@ xcrun swiftc -typecheck -parse-as-library -swift-version 6 -application-extensio
     -target "$(uname -m)-apple-macos15.0" FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Localization.swift
 mkdir -p build/Checks
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
-    App/MouseResetController.swift App/Core/ApplicationLifecycle.swift App/Localization.swift \
+    App/CommandRunner.swift App/Localization.swift Tests/CommandRunnerCheck.swift -o build/Checks/command-runner
+build/Checks/command-runner
+xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
+    App/CommandRunner.swift App/MouseResetController.swift App/Core/MouseResetConfiguration.swift App/Core/ApplicationLifecycle.swift App/Localization.swift \
     App/SystemMemoryPanel.swift App/ApplicationRecovery.swift Tests/MouseResetCheck.swift \
     -o build/Checks/mouse-reset
 build/Checks/mouse-reset
@@ -45,7 +48,7 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -I "$permission_support_bin" -I "$permission_support_bin/Modules" \
     -L "$permission_support_bin" -lBucklePermissionSupport \
     -Xlinker -rpath -Xlinker "$(pwd)/$sparkle_framework" -target "$(uname -m)-apple-macos15.0" \
-    App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift \
+    App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift \
     App/BrowserLauncher.swift App/FinderExtensionController.swift App/MouseResetController.swift App/MenuBarRestartController.swift \
     App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift -o build/Checks/native-menu
 build/Checks/native-menu
