@@ -84,7 +84,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(
             action(
                 mouseReset.isPresented ? localized("mouse.show.progress") : localized("mouse.reset"),
-                symbol: "computermouse", enabled: acceptingWork
+                symbol: "computermouse", enabled: mouseReset.canPresent
             ) { $0.resetMouse() })
         menu.addItem(
             action(

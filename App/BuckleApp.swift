@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showMouseReset() {
-        guard !lifecycle.terminationRequested else { return }
+        guard mouseReset.canPresent else { return }
         if mouseResetWindow == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),

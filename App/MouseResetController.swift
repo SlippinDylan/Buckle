@@ -63,6 +63,10 @@ final class MouseResetController {
         return false
     }
 
+    var canPresent: Bool {
+        !lifecycle.terminationRequested && (isPresented || !lifecycle.isActive(.mouseReset))
+    }
+
     var symbol: String {
         switch state {
         case .idle: "rectangle.compress.vertical"

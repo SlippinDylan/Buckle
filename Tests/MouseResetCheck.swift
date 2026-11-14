@@ -85,6 +85,21 @@ private final class FakeResetOperations: MouseResetOperations {
 }
 
 @MainActor
+private final class InterruptedResetOperations: MouseResetOperations {
+    var continuation: CheckedContinuation<Void, Never>?
+    var steps: [MouseResetStep] = []
+    var fails = false
+
+    func hasInterruptedRecovery() throws -> Bool { true }
+    func restoreInterruptedApps() async throws {
+        await withCheckedContinuation { continuation = $0 }
+        if fails { throw CocoaError(.fileReadUnknown) }
+    }
+    func perform(_ step: MouseResetStep) async throws { steps.append(step) }
+    func restoreApps() async throws {}
+}
+
+@MainActor
 private final class FakeMemoryRecovery: SystemMemoryPanelOperations {
     var fails = false
     var restorations = 0
@@ -190,6 +205,7 @@ enum MouseResetCheck {
             precondition(!reset.isPresented)
         }
         do {
+            try await verifyStartupRecoveryAdmission()
             try await verifyServiceRefresh()
             try await verifyNormalResetOnlyRestartsRunningTools()
             try await verifyConfiguredApplications()
@@ -294,6 +310,40 @@ enum MouseResetCheck {
         print(
             "Mouse reset sequence, failures, recovery, duplicate prevention, and status symbols verified using fake operations."
         )
+    }
+
+    @MainActor private static func verifyStartupRecoveryAdmission() async throws {
+        for fails in [false, true] {
+            for quits in [false, true] {
+                let operations = InterruptedResetOperations()
+                operations.fails = fails
+                let lifecycle = ApplicationLifecycle()
+                let controller = MouseResetController(operations: operations, lifecycle: lifecycle)
+                precondition(controller.canPresent)
+                let recovery = Task { try await controller.recoverInterruptedReset { true } }
+                while operations.continuation == nil { await Task.yield() }
+                precondition(!controller.canPresent && !controller.isPresented)
+                await controller.run()
+                precondition(operations.steps.isEmpty, "Startup restoration must exclude a new reset")
+                if quits { precondition(!lifecycle.requestTermination()) }
+                operations.continuation?.resume()
+                do {
+                    try await recovery.value
+                    precondition(!fails)
+                } catch { precondition(fails && (error as? CocoaError)?.code == .fileReadUnknown) }
+                precondition(!lifecycle.isActive(.mouseReset))
+                precondition(controller.canPresent == !quits)
+                if !quits {
+                    controller.onStateChange = {
+                        precondition(controller.canPresent, "Normal progress and results must remain accessible")
+                    }
+                    await controller.run()
+                    precondition(operations.steps == MouseResetStep.allCases && controller.isPresented)
+                    controller.dismiss()
+                    precondition(controller.canPresent)
+                }
+            }
+        }
     }
 
     @MainActor private static func verifyServiceRefresh() async throws {

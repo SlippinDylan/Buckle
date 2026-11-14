@@ -95,9 +95,19 @@ enum NativeMenuCheck {
         controller.menuNeedsUpdate(menu)
         precondition(menu.item(withTitle: localized("memory.open.system"))?.isEnabled == true)
 
+        precondition(lifecycle.begin(.mouseReset))
+        controller.menuNeedsUpdate(menu)
+        precondition(
+            menu.item(withTitle: localized("mouse.reset"))?.isEnabled == false,
+            "An idle reset controller cannot start work while startup recovery owns the operation")
+        lifecycle.end(.mouseReset)
+        controller.menuNeedsUpdate(menu)
+        precondition(menu.item(withTitle: localized("mouse.reset"))?.isEnabled == true)
+
         await mouse.run()
         controller.menuNeedsUpdate(menu)
         precondition(menu.item(withTitle: localized("mouse.show.progress")) != nil)
+        precondition(menu.item(withTitle: localized("mouse.show.progress"))?.isEnabled == true)
         precondition(menu.item(withTitle: localized("mouse.reset")) == nil)
         mouse.dismiss()
         precondition(lifecycle.requestTermination())
