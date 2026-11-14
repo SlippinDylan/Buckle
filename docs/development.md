@@ -70,7 +70,7 @@ Debug 的 `BUCKLE_UPDATER_ENABLED=NO`，不要求更新源或私钥；CI 和 Pac
 1. 在 manifest 中递增 `version` 和 `build`，并设置 `packagingEnabled: true`。保持版本与构建号同时递增，避免 Sparkle 将新包视为旧构建。
 2. 明确需要构建时运行 `bash Scripts/build.sh Release`，再运行 `bash Scripts/create-dmg.sh build/DerivedData/Build/Products/Release/Buckle.app build/Buckle-<version>.dmg`。这个包启用更新器；现有 Package 生成的 `-test.dmg` 不符合更新发布条件。
 3. 在公开的 `SlippinDylan/Buckle` 发布稳定 GitHub Release，标签为 `v<version>`，上传唯一同名 `Buckle-<version>.dmg`。保持该下载地址可用，旧清单仍引用的包不要删除。当前仓库尚未公开，不自动修改仓库可见性或创建 Release。
-4. `Publish Update Feed` 随 Release 发布触发，也可在 main 手动输入已发布标签重跑。它读取标签中的 manifest，验证开关、稳定版状态与仓库公开性，挂载 DMG 验证签名、版本、构建号、公钥、更新地址和 Sparkle 组件，再调用 `Scripts/prepare-update.sh` 生成并验签清单。历史清单从 Tap 读取，最多保留三个版本；发布说明嵌入签名清单。
+4. `Publish Update Feed` 随稳定 Release 发布执行，预发布测试版跳过；也可在 main 手动输入已发布稳定版标签重跑。它读取标签中的 manifest，验证开关、稳定版状态与仓库公开性，挂载 DMG 验证签名、版本、构建号、公钥、更新地址和 Sparkle 组件，再调用 `Scripts/prepare-update.sh` 生成并验签清单。历史清单从 Tap 读取，最多保留三个版本；发布说明嵌入签名清单。
 5. 工作流只提交 `homebrew-tap/docs/buckle/appcast.xml`，不修改其他 App 的清单，也不自动生成 Homebrew Cask。此处使用 Tap 作为更新源宿主。推送冲突最多重试三次，失败明确报告；已发布包保持不变，可手动重跑清单同步。
 6. 首次发布后验收 Pages 地址、正确和错误签名、网络失败、检查偏好保存、从旧版本实际安装更新及重启后 Finder 扩展状态。本地构建或离线签名校验不能替代线上工作流和真实升级验收。
 
