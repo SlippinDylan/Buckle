@@ -55,7 +55,7 @@ Builds use ad-hoc signing and are not notarized. A downloaded build may need app
 - **Restart System Menu Bar:** restarts your SystemUIServer without sudo. It may not fix icons owned by other apps.
 - **Browser profiles:** uses the browser’s existing data and saved sign-ins, without creating a separate profile. Profile selection follows the browser’s own behavior. Quit the browser before changing its launch language; Buckle only shows a notice if it is already running. This does not change your IP address or time zone, or guarantee a website’s language.
 - **Finder:** Copy Path works in the extension; other actions launch Buckle when needed. For Move Items Here, first copy files in Finder, then right-click the destination folder or its background. Moves require confirmation, never replace existing items, and have no Finder Undo integration. A partial failure leaves completed moves in place; check both folders before retrying. Finder controls menu placement. Custom Finder menu labels follow Buckle’s language after restarting Buckle; the native AirDrop label follows the system.
-- **Updates:** Sparkle is integrated. Manual checks are under **Settings → About**, automatic checks under **General**. Development and CI test builds disable updates; online updates require a published installer and signed feed.
+- **Updates:** Sparkle is integrated. Manual checks are under **Settings → About**, automatic checks under **General**. Development and pull request builds disable updates; main CI release builds enable them; online updates require a published installer and signed feed.
 
 ## Build from source
 

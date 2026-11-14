@@ -25,7 +25,7 @@ xcrun swift-format format -i --recursive App FinderExtension Support Tests Packa
 bash Scripts/check.sh
 ```
 
-需要完整构建时运行 `bash Scripts/build.sh Debug` 或 `bash Scripts/build.sh Release`。输出在 `build/DerivedData/Build/Products/`。构建后自动运行 `Scripts/verify-bundle.sh`，检查主应用及内嵌扩展的签名、ad-hoc Hardened Runtime 下的库验证例外、版本一致性、架构和扩展权限，以及 Sparkle 框架、内部组件、架构覆盖与更新校验配置；CI 与 Package 共用该检查。所有构建检查都要求主应用和 Finder 扩展分别使用固定标识 `studio.slippindylan.Buckle` 与 `studio.slippindylan.Buckle.Finder`。开发检查允许单架构；分发入口额外传入 `--distribution`，要求两者均包含 arm64 和 x86_64。DMG 创建及更新发布的挂载检查采用同一分发规则。应用图标的设计源为仓库根目录的 `Buckle.icon`，保留用户提供的 Icon Composer 文档和素材。Debug、Release 的主应用均设置 `ASSETCATALOG_COMPILER_APPICON_NAME = Buckle`，并将文档加入 Resources；由 Xcode 编译 `Assets.car`、生成旧系统兼容的 `Buckle.icns`，合并 Info.plist 图标元数据。关于页通过 `NSApp.applicationIconImage` 读取同一图标，不单独复制图标。构建检查同时校验图标元数据和资源，拒绝捆绑旧版 `AppIcon.icns`。
+需要完整构建时运行 `bash Scripts/build.sh Debug` 或 `bash Scripts/build.sh Release`。输出在 `build/DerivedData/Build/Products/`。构建后自动运行 `Scripts/verify-bundle.sh`，检查主应用及内嵌扩展的签名、ad-hoc Hardened Runtime 下的库验证例外、版本一致性、架构和扩展权限，以及 Sparkle 框架、内部组件、架构覆盖与更新校验配置；CI 与本地构建共用该检查。所有构建检查都要求主应用和 Finder 扩展分别使用固定标识 `studio.slippindylan.Buckle` 与 `studio.slippindylan.Buckle.Finder`。开发检查允许单架构；分发入口额外传入 `--distribution`，要求两者均包含 arm64 和 x86_64。DMG 创建及更新发布的挂载检查采用同一分发规则。应用图标的设计源为仓库根目录的 `Buckle.icon`，保留用户提供的 Icon Composer 文档和素材。Debug、Release 的主应用均设置 `ASSETCATALOG_COMPILER_APPICON_NAME = Buckle`，并将文档加入 Resources；由 Xcode 编译 `Assets.car`、生成旧系统兼容的 `Buckle.icns`，合并 Info.plist 图标元数据。关于页通过 `NSApp.applicationIconImage` 读取同一图标，不单独复制图标。构建检查同时校验图标元数据和资源，拒绝捆绑旧版 `AppIcon.icns`。
 
 菜单栏空闲状态使用独立的线稿模板，设计源为 `App/Resources/MenuBarIconTemplate.svg`，不从彩色应用图标提取轮廓。`MenuBarIconTemplate.png` 为 18×18 的 1× 图，`MenuBarIconTemplate@2x.png` 为 36×36 的 Retina 图，均按 18pt 显示，并随系统明暗外观着色。修改线稿时同步更新 SVG 和两张 PNG；Xcode 通过 `COMBINE_HIDPI_IMAGES` 将两种尺寸合并成 `MenuBarIconTemplate.tiff`，构建校验确认其中同时包含 18px 和 36px 图像。SVG 仅保留在源码中，不作为运行时资源打包。鼠标重置期间及完成后保留进度、成功和失败状态图标。README 的 `docs/images/readme/app-icon.png` 使用 Icon Composer 导出，文档截图来自实际运行的应用。
 
@@ -35,7 +35,7 @@ bash Scripts/check.sh
   --platform macOS --rendition Default --width 1024 --height 1024 --scale 1
 ```
 
-CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。Package 单独手动触发，先验证 manifest，再根据开关决定是否执行 macOS 打包任务；生成启用更新器的 `Buckle-<version>.dmg` 与 SHA256 校验文件，产物保留 7 天，随后可将原包上传到对应版本的 GitHub Release。工作流不自行创建 Release 或推送其他仓库。关闭开关时通知报告 skipped，不把工作流的成功状态误报为已产出安装包。
+CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main 的检查全部通过且 manifest 的打包开关开启时，同一次构建继续生成 `Buckle-<version>.dmg`、SHA256 校验文件和发布说明，再由独立的 GitHub 发布任务自动创建稳定 Release；不经本地下载或上传。PR 不打包发布，编译检查任务只有只读权限。发布任务只接收当前 CI 的安装包；已发布的版本跳过，不覆盖已有附件，新增版本须递增 manifest。构建产物保留 7 天，Release 附件长期保存。不再使用独立 Package 工作流。
 
 通知工作流读取默认分支上的脚本，不执行 fork PR 的代码或下载其构建产物。权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。通知失败会让相应工作流失败，不伪装为成功。目前没有自动重试，需通过 GitHub 重新运行失败任务。`Publish Update Feed` 的开始及完成结果也发送通知；GitHub Release 发布消息只说明 Release 已发布，不代表更新清单已同步。
 
@@ -63,14 +63,14 @@ GitHub 仓库 `SlippinDylan/Buckle` 已配置 Secret `SPARKLE_ED_PRIVATE_KEY`、
 
 `ApplicationUpdateController` 管理一个 Sparkle 标准更新器；主应用确认单实例后立即启动更新服务，不依赖用户激活应用或打开设置。设置窗口的通用页仅提供自动检查开关，手动检查更新统一放在关于页；自动检查开关直接读写 Sparkle 自己持久化的偏好，并通过主线程 KVO 更新界面，不在每次启动时覆盖用户选择。检查不可用时禁用入口，配置错误或启动失败在设置窗口中明确显示。网络错误及下载安装交给 Sparkle 原生界面。八种语言均补齐入口文本。
 
-Debug 的 `BUCKLE_UPDATER_ENABLED=NO`，不要求更新源或私钥；CI 构建显式停用更新；Package 使用 Release 配置并启用更新。Release 使用 `BUCKLE_UPDATER_ENABLED=YES` 及 HTTPS 地址 `https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml`。启动前校验地址、公钥；`SURequireSignedFeed` 与 `SUVerifyUpdateBeforeExtraction` 始终开启。首次发布前地址尚无 Buckle 清单，不能把接入代码完成当作已有更新可下载。
+Debug 的 `BUCKLE_UPDATER_ENABLED=NO`，不要求更新源或私钥；PR 构建停用更新；main 的 CI 使用 Release 配置并启用更新。Release 使用 `BUCKLE_UPDATER_ENABLED=YES` 及 HTTPS 地址 `https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml`。启动前校验地址、公钥；`SURequireSignedFeed` 与 `SUVerifyUpdateBeforeExtraction` 始终开启。首次发布前地址尚无 Buckle 清单，不能把接入代码完成当作已有更新可下载。
 
 正式更新沿用现有 `homebrew-tap` 的 GitHub Pages `docs/` 托管，不将安装包提交到 Tap 或源码仓库：
 
 1. 在 manifest 中递增 `version` 和 `build`，并设置 `packagingEnabled: true`。保持版本与构建号同时递增，避免 Sparkle 将新包视为旧构建。
-2. 在 GitHub Actions 手动运行 Package，下载通过检查的 `Buckle-<version>.dmg` 与 SHA256 校验文件，无需本地编译。只有明确需要本地构建时才运行 `bash Scripts/build.sh Release`，再运行 `bash Scripts/create-dmg.sh build/DerivedData/Build/Products/Release/Buckle.app build/Buckle-<version>.dmg`。两种方式均启用更新器。
-3. 在 `SlippinDylan/Buckle` 发布稳定 GitHub Release，标签为 `v<version>`，上传唯一同名 `Buckle-<version>.dmg`。保持该下载地址可用，旧清单仍引用的包不要删除。私有仓库允许发布供有权限用户下载的 Release；不自动修改仓库可见性。公开更新源只允许引用公开仓库的安装包。
-4. `Publish Update Feed` 随公开仓库的稳定 Release 发布执行，私有仓库和预发布版本跳过；也可在 main 手动输入已发布稳定版标签重跑。它读取标签中的 manifest，验证开关、稳定版状态与仓库公开性，挂载 DMG 验证签名、版本、构建号、公钥、更新地址和 Sparkle 组件，再调用 `Scripts/prepare-update.sh` 生成并验签清单。历史清单从 Tap 读取，最多保留三个版本；发布说明嵌入签名清单。
+2. 推送 main 或在 GitHub Actions 手动运行 CI，检查通过且打包开关开启时自动构建并发布，无需本地编译或中转上传。只有明确需要本地构建时才运行 `bash Scripts/build.sh Release`，再运行 `bash Scripts/create-dmg.sh build/DerivedData/Build/Products/Release/Buckle.app build/Buckle-<version>.dmg`。两种方式均启用更新器。
+3. CI 自动在 `SlippinDylan/Buckle` 创建稳定 GitHub Release，标签为 `v<version>`，附件为唯一同名 `Buckle-<version>.dmg` 与 SHA256 校验文件。保持该下载地址可用，旧清单仍引用的包不要删除。私有仓库允许发布供有权限用户下载的 Release；不自动修改仓库可见性。公开更新源只允许引用公开仓库的安装包。
+4. CI 创建公开仓库的稳定 Release 后显式调用 `Publish Update Feed`；手动发布的公开稳定 Release 也会触发它。GitHub 规定由 `GITHUB_TOKEN` 创建的 Release 不会再触发其他工作流，因此不能只依赖 release 事件。私有仓库和预发布版本跳过公开更新源；也可在 main 手动输入已发布稳定版标签重跑。它读取标签中的 manifest，验证开关、稳定版状态与仓库公开性，挂载 DMG 验证签名、版本、构建号、公钥、更新地址和 Sparkle 组件，再调用 `Scripts/prepare-update.sh` 生成并验签清单。历史清单从 Tap 读取，最多保留三个版本；发布说明嵌入签名清单。
 5. 工作流只提交 `homebrew-tap/docs/buckle/appcast.xml`，不修改其他 App 的清单，也不自动生成 Homebrew Cask。此处使用 Tap 作为更新源宿主。推送冲突最多重试三次，失败明确报告；已发布包保持不变，可手动重跑清单同步。
 6. 首次发布后验收 Pages 地址、正确和错误签名、网络失败、检查偏好保存、从旧版本实际安装更新及重启后 Finder 扩展状态。本地构建或离线签名校验不能替代线上工作流和真实升级验收。
 
@@ -130,7 +130,7 @@ ad-hoc 签名的指定要求绑定具体构建，不能保证跨版本保留 TCC
 4. Finder 一级菜单和系统图标、多文件及文件夹 AirDrop、取消传输、入口开关、外置盘与新挂载卷；扩展缺失/未注册/禁用时的底部引导、系统设置返回后的状态刷新。
 5. 菜单栏原生菜单打开系统 LowMemoryPanel，确认正常内存状态也可手动打开、辅助功能/自动化权限拒绝和临时系统偏好恢复。
 6. 鼠标重置名单的添加、去重、移除、空态和重启后保存，以及所有已运行应用先退出再统一恢复、未运行应用不启动、卸载应用跳过、空名单仍刷新服务、异常退出后下次启动的恢复与稍后选项；验证每次重置均执行服务刷新、系统管理员授权、取消授权、应用拒绝退出、重启/恢复失败及状态图标，以及开机自启批准/禁用/重新登录。模拟检查不会实际终止应用或刷新系统服务。
-7. GitHub 中实际执行 CI 与开关启闭后的 Package，并核对 DMG 架构、版本、校验和及 Discord 通知。
+7. GitHub 中实际执行打包开关启闭后的 CI，核对检查失败不发布、PR 不发布、已有版本不覆盖，以及 DMG 架构、版本、校验和、Release 附件及 Discord 通知。
 8. 鼠标重置或内存窗口调用期间正常退出、由 Sparkle 安装更新触发退出，确认等待恢复完成；恢复失败时验证取消、重试、明确继续退出及内存记录查看。确认取消后可再次恢复，重试不再次重置服务或请求管理员授权。
 9. 已授权的旧版本通过 Sparkle 更新后，验证新版本权限检测、重新授权指引和返回应用后的自动复查；不能以相同版本的模拟权限检查代替真实升级验收。
 

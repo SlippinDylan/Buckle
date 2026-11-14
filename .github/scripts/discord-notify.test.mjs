@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { enrichPackageResult, notification, send } from './discord-notify.mjs';
+import { notification, send } from './discord-notify.mjs';
 
 const repository = { full_name: 'SlippinDylan/Buckle' };
 
@@ -11,11 +11,9 @@ test('untrusted event text cannot ping Discord members', () => {
   assert.equal(payload.embeds[0].url, 'https://github.com/SlippinDylan/Buckle');
 });
 
-test('reports workflow failures and skips non-main packages accurately', () => {
+test('reports workflow failures accurately', () => {
   const event = { repository, action: 'completed', workflow_run: { name: 'CI', conclusion: 'failure', head_branch: 'main', id: 42 } };
   assert.equal(notification('workflow_run', event).embeds[0].color, 0xed4245);
-  event.workflow_run = { ...event.workflow_run, name: 'Package', conclusion: 'success', head_branch: 'feature' };
-  assert.ok(notification('workflow_run', event).embeds[0].title.includes('skipped'));
 });
 
 test('ignores unrelated workflows and unknown events', () => {
@@ -42,29 +40,6 @@ test('sends JSON with wait enabled', async () => {
   assert.ok(invoked);
 });
 
-test('disabled packaging is reported as skipped even when workflow succeeds', async () => {
-  const event = { repository, action: 'completed', workflow_run: {
-    name: 'Package', conclusion: 'success', head_branch: 'main', id: 42, run_attempt: 2,
-  } };
-  await enrichPackageResult(event, 'fake-token', async (url, options) => {
-    assert.ok(url.endsWith('/42/attempts/2/jobs?per_page=100'));
-    assert.equal(options.headers.Authorization, 'Bearer fake-token');
-    return { ok: true, json: async () => ({ total_count: 2, jobs: [
-      { name: 'Check packaging switch', conclusion: 'success' },
-      { name: 'Build DMG', conclusion: 'skipped' },
-    ] }) };
-  });
-  assert.ok(notification('workflow_run', event).embeds[0].title.includes('skipped'));
-});
-
-test('unavailable package job results cannot become successful notifications', async () => {
-  const event = { repository, action: 'completed', workflow_run: {
-    name: 'Package', conclusion: 'success', head_branch: 'main', id: 42, run_attempt: 1,
-  } };
-  await assert.rejects(enrichPackageResult(event, 'fake-token', async () => ({ ok: false, status: 403 })));
-  await assert.rejects(enrichPackageResult(event, 'fake-token', async () => ({ ok: true, json: async () => ({ jobs: [], total_count: 0 }) })));
-});
-
 test('update feed failures and successes have distinct release notifications', () => {
   for (const [conclusion, color] of [['failure', 0xed4245], ['success', 0x57f287]]) {
     const event = { repository, action: 'completed', workflow_run: {
@@ -85,5 +60,5 @@ test('workflow trigger includes every workflow handled by the notification scrip
   const { readFile } = await import('node:fs/promises');
   const source = await readFile(new URL('../workflows/discord-notify.yml', import.meta.url), 'utf8');
   const names = source.match(/workflows: \[([^\]]+)\]/)[1].split(',').map(name => name.trim());
-  assert.deepEqual(names, ['CI', 'Package', 'Publish Update Feed']);
+  assert.deepEqual(names, ['CI', 'Publish Update Feed']);
 });

@@ -9,14 +9,13 @@ on:
   issue_comment:
     types: [created]
   workflow_run:
-    workflows: [CI, Package, Publish Update Feed]
+    workflows: [CI, Publish Update Feed]
     types: [in_progress, completed]
   release:
     types: [published]
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
   notify:
@@ -33,5 +32,4 @@ jobs:
       - name: Send notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/discord-notify.mjs
