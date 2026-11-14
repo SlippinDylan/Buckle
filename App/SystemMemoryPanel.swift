@@ -312,7 +312,8 @@ enum MemoryPanelWindowVerification {
             try Task.checkCancellation()
             try checkDeadline(deadline)
             if visible { return }
-            try await Task.sleep(until: min(.now.advanced(by: .milliseconds(100)), deadline), clock: .continuous)
+            try await Task.sleep(
+                until: min(ContinuousClock.now.advanced(by: .milliseconds(100)), deadline), clock: .continuous)
         }
     }
 
