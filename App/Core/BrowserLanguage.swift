@@ -30,9 +30,7 @@ public enum BrowserLanguage: String, CaseIterable, Sendable {
     }
 
     public var arguments: [String] {
-        [
-            "--lang=\(chromiumLocale)", "--accept-lang=\(chromiumLocale)", "-AppleLanguages",
-            "(\(rawValue))",
-        ]
+        // Chromium treats positional arguments as startup URLs; pass language switches only.
+        ["--lang=\(chromiumLocale)", "--accept-lang=\(chromiumLocale)"]
     }
 }

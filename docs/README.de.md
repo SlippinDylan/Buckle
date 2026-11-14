@@ -8,7 +8,7 @@
 Buckle ist eine native macOS-Menüleisten-App für Systemwerkzeuge, Browserstarts in einer anderen Sprache und häufige Finder-Aktionen. Sie läuft im Hintergrund ohne Dock-Symbol.
 
 > [!NOTE]
-> Für Buckle 0.1.0 gibt es noch kein öffentliches Installationspaket. Die Bauanleitung steht unten.
+> Für Buckle 0.1.1 gibt es noch kein öffentliches Installationspaket. Die Bauanleitung steht unten.
 
 ## Funktionen
 

@@ -8,7 +8,7 @@
 Buckle es una app nativa de macOS en la barra de menús que reúne herramientas del sistema, inicio de navegadores en otro idioma y acciones habituales del Finder. Funciona en segundo plano sin icono en el Dock.
 
 > [!NOTE]
-> Buckle 0.1.0 aún no tiene un instalador público. Sigue las instrucciones de compilación de abajo.
+> Buckle 0.1.1 aún no tiene un instalador público. Sigue las instrucciones de compilación de abajo.
 
 ## Funciones
 
