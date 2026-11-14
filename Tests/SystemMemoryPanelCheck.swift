@@ -54,6 +54,7 @@ private final class FakePanelOperations: SystemMemoryPanelOperations {
 enum SystemMemoryPanelCheck {
     @MainActor static func main() async throws {
         try await verifyWindowConfirmation()
+        try await verifyOpeningDuringManualAuthorization()
         let event = MemoryPanelShortcut.event()
         precondition(event.eventClass == 0x7072_6373 && event.eventID == 0x6b63_6f64)
         precondition(event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.int32Value == 53)
@@ -293,6 +294,39 @@ enum SystemMemoryPanelCheck {
             "Memory panel recovery across restarts, permission denial and error paths verified without opening a window."
         )
     }
+    @MainActor private static func verifyOpeningDuringManualAuthorization() async throws {
+        let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {
+            if FileManager.default.fileExists(atPath: root.path) {
+                do { try FileManager.default.removeItem(at: root) } catch { preconditionFailure("\(error)") }
+            }
+        }
+        for fails in [false, true] {
+            let operations = FakePanelOperations(original: nil)
+            operations.suspendsManualRequest = true
+            let panel = SystemMemoryPanel(operations: operations, recovery: .init(directory: root))
+            let authorization = Task { try await panel.requestAutomationPermission() }
+            while operations.permissionContinuation == nil { await Task.yield() }
+            // Only the original request stays suspended; a second request must be rejected before IO.
+            operations.suspendsManualRequest = false
+            let opened = try await panel.show(requestPermission: true)
+            precondition(!opened, "Manual authorization must exclude a simultaneous memory opening")
+            precondition(panel.isCheckingPermissions && !panel.isOpening)
+            precondition(operations.permissionRequests == [true])
+            precondition(operations.writes.isEmpty && !operations.triggered)
+            operations.permissionsFail = fails
+            operations.permissionContinuation?.resume()
+            do {
+                try await authorization.value
+                precondition(!fails)
+            } catch { precondition(fails && (error as NSError).domain == "Test") }
+            precondition(!panel.isCheckingPermissions)
+            operations.permissionsFail = false
+            let retried = try await panel.show(requestPermission: true)
+            precondition(retried, "The action must become available after successful or failed authorization")
+        }
+    }
+
     @MainActor private static func verifyWindowConfirmation() async throws {
         let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

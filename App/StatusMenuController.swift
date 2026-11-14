@@ -77,7 +77,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(.sectionHeader(title: localized("menu.system")))
         menu.addItem(
             action(
-                localized("memory.open.system"), symbol: "macwindow", enabled: acceptingWork && !memoryPanel.isOpening
+                localized("memory.open.system"), symbol: "macwindow", enabled: memoryPanel.canOpen
             ) {
                 $0.openMemory()
             })

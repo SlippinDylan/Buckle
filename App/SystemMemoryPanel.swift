@@ -76,6 +76,10 @@ struct MemoryPanelRecoveryStore {
 final class SystemMemoryPanel {
     var isOpening: Bool { lifecycle.isActive(.memoryPanel) }
     var isCheckingPermissions: Bool { lifecycle.isActive(.memoryPermissions) }
+    var canOpen: Bool {
+        // Background checks can be awaited; a foreground authorization must finish before another user action.
+        !lifecycle.terminationRequested && !isOpening && (!isCheckingPermissions || permissionCheck != nil)
+    }
     private(set) var permissionStatus: MemoryPanelPermissionStatus = .unchecked
     private(set) var automationGranted: Bool?
     var permissionIssue: MemoryPanelPermissionIssue? {
@@ -155,7 +159,7 @@ final class SystemMemoryPanel {
     }
 
     func show(requestPermission: Bool) async throws -> Bool {
-        guard lifecycle.begin(.memoryPanel) else { return false }
+        guard canOpen, lifecycle.begin(.memoryPanel) else { return false }
         defer { lifecycle.end(.memoryPanel) }
         // Reserve the user's request before waiting; additional clicks coalesce into this opening.
         if let permissionCheck { await permissionCheck.value }

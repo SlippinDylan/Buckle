@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSystemMemoryPanel() async {
-        guard !systemMemoryPanel.isOpening else { return }
+        guard systemMemoryPanel.canOpen else { return }
         do {
             let opened = try await systemMemoryPanel.show(requestPermission: true)
             if !opened && !lifecycle.terminationRequested { showSettings(category: .permissions) }

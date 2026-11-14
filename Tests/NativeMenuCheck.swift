@@ -8,6 +8,8 @@ enum NativeMenuCheck {
         let mouse = MouseResetController(operations: MenuCheckMouseOperations(), lifecycle: lifecycle)
         let restart = MenuBarRestartController(
             operations: MenuCheckRestartOperations(), lifecycle: lifecycle)
+        let panelOperations = MenuCheckPanelOperations()
+        let panel = SystemMemoryPanel(operations: panelOperations, lifecycle: lifecycle)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer {
@@ -24,7 +26,7 @@ enum NativeMenuCheck {
         var memoryRequests = 0
         var mouseRequests = 0
         let controller = StatusMenuController(
-            memoryPanel: SystemMemoryPanel(lifecycle: lifecycle), mouseReset: mouse, menuBarRestart: restart,
+            memoryPanel: panel, mouseReset: mouse, menuBarRestart: restart,
             finder: finder, lifecycle: lifecycle,
             openMemory: { memoryRequests += 1 }, openSettings: { openedCategories.append($0) },
             resetMouse: { mouseRequests += 1 })
@@ -82,6 +84,16 @@ enum NativeMenuCheck {
         precondition(menu.items.filter { $0.keyEquivalent == "," }.count == 1)
         precondition(menu.item(withTitle: localized("settings.title"))?.keyEquivalent == ",")
         precondition(menu.item(withTitle: localized("buckle.quit"))?.keyEquivalent == "q")
+
+        panelOperations.suspends = true
+        let authorization = Task { try await panel.requestAutomationPermission() }
+        while panelOperations.continuation == nil { await Task.yield() }
+        controller.menuNeedsUpdate(menu)
+        precondition(menu.item(withTitle: localized("memory.open.system"))?.isEnabled == false)
+        panelOperations.continuation?.resume()
+        try await authorization.value
+        controller.menuNeedsUpdate(menu)
+        precondition(menu.item(withTitle: localized("memory.open.system"))?.isEnabled == true)
 
         await mouse.run()
         controller.menuNeedsUpdate(menu)
@@ -269,6 +281,8 @@ private struct MenuCheckRestartOperations: MenuBarRestartOperations {
 private final class MenuCheckPanelOperations: SystemMemoryPanelOperations {
     var accessibilityGranted = true
     var requests: [Bool] = []
+    var suspends = false
+    var continuation: CheckedContinuation<Void, Never>?
 
     func debugValue() -> CFPropertyList? { nil }
     func setDebugValue(_ value: CFPropertyList?) throws {
@@ -277,6 +291,7 @@ private final class MenuCheckPanelOperations: SystemMemoryPanelOperations {
     func trigger() async throws { preconditionFailure("Settings checks must not open system windows") }
     func permissions(requestPermission: Bool) async throws -> MemoryPanelPermissions {
         requests.append(requestPermission)
+        if suspends { await withCheckedContinuation { continuation = $0 } }
         return MemoryPanelPermissions(accessibilityGranted: accessibilityGranted, automationGranted: true)
     }
 }
