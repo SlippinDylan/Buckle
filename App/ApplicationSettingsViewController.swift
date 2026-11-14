@@ -40,6 +40,7 @@ final class ApplicationSettingsViewController: NSViewController {
     private let updates: ApplicationUpdateController
     private let permissionGuidance: PermissionGuidance
     private let contentStack = NSStackView()
+    private let mouseResetWaitLabel = NSTextField(labelWithString: "")
     private var loginStatus = SMAppService.mainApp.status
     private(set) var selectedCategory = Category.general
 
@@ -154,6 +155,29 @@ final class ApplicationSettingsViewController: NSViewController {
         do {
             let tools = try mouseResetPreferences.load()
             let editable = !lifecycle.terminationRequested && !lifecycle.isActive(.mouseReset)
+            let waitSeconds = try mouseResetPreferences.loadServiceWaitSeconds()
+            let wait = NSStepper()
+            wait.minValue = Double(MouseResetPreferences.serviceWaitRange.lowerBound)
+            wait.maxValue = Double(MouseResetPreferences.serviceWaitRange.upperBound)
+            wait.increment = 1
+            wait.valueWraps = false
+            wait.integerValue = waitSeconds
+            wait.target = self
+            wait.action = #selector(changeMouseResetWait(_:))
+            wait.identifier = NSUserInterfaceItemIdentifier("mouse-reset.service-wait")
+            wait.setAccessibilityLabel(localized("mouse.settings.wait"))
+            wait.isEnabled = editable
+            mouseResetWaitLabel.stringValue = localizedFormat("mouse.settings.wait.seconds", String(waitSeconds))
+            let waitControl = NSStackView(views: [mouseResetWaitLabel, wait])
+            waitControl.orientation = .horizontal
+            waitControl.alignment = .centerY
+            waitControl.spacing = 8
+            addSection(
+                localized("mouse.settings.timing"),
+                rows: [
+                    settingRow(localized("mouse.settings.wait"), control: waitControl),
+                    description(localized("mouse.settings.wait.help")),
+                ])
             let add = NSButton(
                 title: localized("mouse.settings.add"), target: self, action: #selector(addMouseResetApplications))
             add.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
@@ -170,6 +194,15 @@ final class ApplicationSettingsViewController: NSViewController {
         } catch {
             addDescription(error.localizedDescription)
         }
+    }
+
+    @objc private func changeMouseResetWait(_ sender: NSStepper) {
+        guard !lifecycle.terminationRequested, !lifecycle.isActive(.mouseReset) else { return }
+        do {
+            try mouseResetPreferences.saveServiceWaitSeconds(sender.integerValue)
+            mouseResetWaitLabel.stringValue = localizedFormat(
+                "mouse.settings.wait.seconds", String(sender.integerValue))
+        } catch { present(error) }
     }
 
     private func mouseResetRow(_ tool: MouseResetTool, editable: Bool) -> NSView {

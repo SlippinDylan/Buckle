@@ -7,8 +7,23 @@
 
 Buckle 是原生 macOS 選單列工具，提供系統工具、依語言啟動瀏覽器，以及常用的 Finder 右鍵操作。在背景執行，不顯示 Dock 圖示。
 
+**[下載 macOS 版本](https://github.com/SlippinDylan/Buckle/releases/latest)** · [開發指南](development.md)
+
 > [!NOTE]
-> Buckle 0.1.1 尚無公開安裝檔，請依下方說明從原始碼建置。
+> 本文介紹目前原始碼中的功能。下載版本的具體變更與使用限制，請以對應版本的發行說明為準。
+
+## 安裝與首次使用
+
+需要 **macOS 15 或以上版本**，支援 Apple Silicon 與 Intel；CI 建置目標為 Universal 2。
+
+1. 前往 [GitHub 最新版本](https://github.com/SlippinDylan/Buckle/releases/latest)，在 **Assets** 中下載 `Buckle-<版本>.dmg`。原始碼壓縮檔供開發使用，不是安裝檔。
+2. 更新前，先在執行中的 Buckle 選單選擇「結束」，等待應用程式結束。開啟 DMG，將 `Buckle.app` 拖入「應用程式」，視需要取代舊版本。
+3. 開啟 `/Applications/Buckle.app`。Buckle 會顯示於選單列，不顯示 Dock 圖示；保留一份已安裝的應用程式。
+4. 透過選單列使用工具或開啟 Finder 右鍵功能。四項 Finder 功能首次使用時預設關閉，之後會保留選擇。
+5. 在「設定 → 權限」中啟用 Finder 擴充功能或授予所需權限。狀態自動更新；綠色文字和勾選表示已授權或已啟用。
+
+> [!IMPORTANT]
+> 建置採用 ad-hoc 簽署，未經公證。下載的版本可能需要在系統設定中允許執行；更新後可能需要重新授權。
 
 ## 功能一覽
 
@@ -27,37 +42,32 @@ Buckle 是原生 macOS 選單列工具，提供系統工具、依語言啟動瀏
   </tr>
 </table>
 
-### 設定
+## 設定
 
 在「設定 → 一般」管理登入時啟動及應用程式語言。預設跟隨系統，也可選擇英文、簡體中文、繁體中文、日文、韓文、德文、法文或西班牙文。變更語言後需重新啟動 Buckle。
+
+在「設定 → 滑鼠重置」中新增、移除應用程式，並設定重新開啟前的等待時間：0–60 秒，預設 3 秒。變更自動儲存，重設期間暫時禁止編輯。
 
 <p align="center">
   <img src="images/readme/general-settings.png" width="340" alt="一般設定">
   <img src="images/readme/permissions-settings.png" width="340" alt="權限狀態">
 </p>
 
-截圖統一顯示英文介面。選單會隨已安裝的瀏覽器、已啟用的功能及已拷貝的檔案變化。
-
-## 安裝與首次使用
-
-需要 **macOS 15 或以上版本**，支援 Apple Silicon 與 Intel；CI 建置目標為 Universal 2。
-
-1. 依下方原始碼建置與安裝步驟操作，再從 `/Applications` 開啟已安裝的應用程式。
-2. 點擊選單列圖示使用工具或開啟 Finder 功能。四項 Finder 功能首次使用時預設關閉，之後會保留選擇。
-3. 開啟「設定 → 權限」啟用 Finder 延伸功能或授予所需權限。狀態自動更新；綠色文字和勾選表示已授權或已啟用。
-
-建置採用 ad-hoc 簽署，未經公證。下載的版本可能需要在系統設定中允許執行；更新後可能需要重新授權。
+截圖展示英文介面，可能與已安裝版本有所差異。選單會隨已安裝的瀏覽器、已啟用功能及已拷貝檔案變化。
 
 ## 使用前須知
 
 - **記憶體視窗：**手動開啟 macOS LowMemoryPanel，記憶體正常時也可呼叫。視窗內建的「系統已用盡應用程式記憶體」不是 Buckle 的診斷。此功能使用私有系統除錯路徑；Buckle 會檢查目標記憶體警告視窗、還原暫時設定，無法確認視窗時回報失敗。相容性仍需逐個 macOS 版本實測。需要輔助使用與 System Events 自動化授權，不進行背景記憶體監測。
 - **重置滑鼠：**在「設定 → 滑鼠重置」中管理應用程式名單，預設包含 Moom、MonitorControl、BetterMouse、iShot Pro。每次操作都會先結束名單中正在執行的應用程式，更新 macOS 共用偏好與系統權限服務，再統一還原這些應用程式。只重新開啟原本正在執行的應用程式。更新服務可能短暫影響其他應用程式，並要求管理者授權。已解除安裝的應用程式會略過，空清單也會重新整理服務。待復原清單會儲存；操作中斷後，下次啟動會詢問是否重新開啟這些應用程式，選擇「稍後」會保留記錄。
 - **重新啟動系統選單列：**重新啟動目前使用者的 SystemUIServer，無須 sudo；不保證修復其他應用程式自行管理的圖示。
-- **瀏覽器設定檔：**使用瀏覽器原有資料與已儲存的登入狀態，不建立獨立設定檔。多個使用者設定檔的選擇遵循瀏覽器自身行為。切換啟動語言前請先結束瀏覽器；瀏覽器已在執行時，Buckle 只顯示提示。此功能不改變 IP 或時區，也不保證網站使用所選語言。
+- **瀏覽器設定檔：**使用瀏覽器原有資料與已儲存的登入狀態，不建立獨立設定檔。多個使用者設定檔的選擇遵循瀏覽器自身行為。切換啟動語言前請先結束瀏覽器；瀏覽器已在執行時，Buckle 只顯示提示。日語啟動時按照原腳本為瀏覽器程序指定東京時區；其他語言保留系統時區。不修改 macOS 設定或 IP，也不保證網站語言或地區格式。時區行為僅在 Chrome Beta 上完成實測。
 - **Finder 操作：**拷貝路徑由延伸功能直接完成，其餘操作按需啟動 Buckle。移動時先在 Finder 拷貝檔案，再於目標檔案夾或空白處按右鍵。移動需確認，不取代現有項目，也不整合 Finder 的還原操作；中途失敗時已完成的移動會保留，請檢查來源與目標後再試。選單位置由 Finder 決定。Buckle 自訂的 Finder 選單文字在重新啟動 Buckle 後跟隨應用程式語言，原生 AirDrop 名稱跟隨系統。
 - **更新：**已整合 Sparkle，手動檢查在「設定 → 關於」，自動檢查開關在「一般」。開發與 PR 檢查版本停用更新，main 的 CI 發布版本啟用更新；線上更新需先發布安裝檔及簽署的更新清單。
 
 ## 從原始碼建置
+
+<details>
+<summary>展開原始碼建置與開發步驟</summary>
 
 需要 Xcode 26 或以上版本、Node.js、Python 3。Debug 建置無須 Apple 開發者帳號。
 
@@ -82,6 +92,8 @@ bash Scripts/build.sh Debug
 open build/DerivedData/Build/Products/Debug/Buckle.app
 ```
 
+</details>
+
 ## 開發文件
 
-[開發指南](development.md)（簡體中文）包含建置檢查、CI、打包、更新發布、簽署與實機驗收清單。未來公開安裝檔將發布至 [GitHub Releases](https://github.com/SlippinDylan/Buckle/releases)。
+[開發指南](development.md)包含架構、檢查、CI 打包、更新發佈、簽署與實機驗收說明。已發佈的安裝檔見 [GitHub Releases](https://github.com/SlippinDylan/Buckle/releases)；[版本變更說明](../CHANGELOG.md)統一使用英文。

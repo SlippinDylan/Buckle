@@ -38,15 +38,21 @@ enum BrowserLauncher {
                 domain: "Buckle.Browser", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: localized("browser.running")])
         }
+        _ = try await NSWorkspace.shared.openApplication(
+            at: browser.url, configuration: launchConfiguration(for: browser, language: language))
+    }
+
+    static func launchConfiguration(for browser: Browser, language: BrowserLanguage) -> NSWorkspace.OpenConfiguration {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         configuration.createsNewApplicationInstance = true
+        configuration.environment = language.environment
         if browser.chromium {
             // Use the browser's own data directory, as the original launch script does.
             configuration.arguments = language.arguments
         } else {
             configuration.arguments = ["-AppleLanguages", "(\(language.rawValue))"]
         }
-        _ = try await NSWorkspace.shared.openApplication(at: browser.url, configuration: configuration)
+        return configuration
     }
 }

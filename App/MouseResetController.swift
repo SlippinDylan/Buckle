@@ -220,13 +220,16 @@ final class NativeMouseReset: MouseResetOperations {
     private let stopTimeout: Duration
     private let configuredTools: () throws -> [MouseResetTool]
     private let recovery: MouseResetRecoveryStore
-    private let settleServices: () async throws -> Void
+    private let settleServices: (Duration) async throws -> Void
+    private let configuredWaitSeconds: () throws -> Int
+    private var serviceWait = Duration.seconds(MouseResetPreferences.defaultServiceWaitSeconds)
 
     init(
         workspace: any MouseResetWorkspace = NativeMouseResetWorkspace(), stopTimeout: Duration = .seconds(10),
         recovery: MouseResetRecoveryStore = MouseResetRecoveryStore(
             directory: URL.applicationSupportDirectory.appending(path: "Buckle/MouseReset")),
-        settleServices: @escaping () async throws -> Void = { try await Task.sleep(for: .seconds(3)) },
+        settleServices: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        configuredWaitSeconds: @escaping () throws -> Int = { try MouseResetPreferences().loadServiceWaitSeconds() },
         configuredTools: @escaping () throws -> [MouseResetTool] = { try MouseResetPreferences().load() }
     ) {
         self.workspace = workspace
@@ -234,6 +237,7 @@ final class NativeMouseReset: MouseResetOperations {
         self.configuredTools = configuredTools
         self.recovery = recovery
         self.settleServices = settleServices
+        self.configuredWaitSeconds = configuredWaitSeconds
     }
 
     func hasInterruptedRecovery() throws -> Bool { try !recovery.load().isEmpty }
@@ -247,6 +251,7 @@ final class NativeMouseReset: MouseResetOperations {
     func perform(_ step: MouseResetStep) async throws {
         switch step {
         case .stoppingApplications:
+            serviceWait = .seconds(try configuredWaitSeconds())
             // Resolve durable recovery before a new reset can replace its records.
             try await restoreInterruptedApps()
             let tools = try configuredTools().compactMap { candidate -> Tool? in
@@ -265,8 +270,8 @@ final class NativeMouseReset: MouseResetOperations {
         case .refreshingPermissions:
             try await MouseResetServiceRefresh.permissions()
         case .restartingApplications:
-            // Match the original script's settling interval after refreshing both shared services.
-            try await settleServices()
+            // Use the interval captured before this reset stopped any applications.
+            try await settleServices(serviceWait)
             try await restoreApps()
         case .checking:
             for snapshot in runningTools {

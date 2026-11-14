@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { extractReleaseNotes } from './release-notes.mjs';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -48,7 +49,8 @@ test('official Sparkle tools produce and verify a signed feed and reject invalid
     }
     assert.notEqual(invoke('https://example.test/', { SPARKLE_PUBLIC_KEY: Buffer.alloc(32).toString('base64') }).status, 0);
     createArchive(directory, archives, publicKey, '0.1.0', 1);
-    writeFileSync(join(archives, 'Buckle-0.1.0.md'), 'Release notes from the archive directory.');
+    const notes = extractReleaseNotes('# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-11-14\n\n### Fixed\n- Release notes from the archive directory.\n', '0.1.0');
+    writeFileSync(join(archives, 'Buckle-0.1.0.md'), notes);
     const result = invoke('https://example.test/updates');
     assert.equal(result.status, 0, result.stderr);
     assert.ok(existsSync(join(archives, 'appcast.xml')), result.stdout + result.stderr);
@@ -58,6 +60,8 @@ test('official Sparkle tools produce and verify a signed feed and reject invalid
     assert.ok(feed.includes('<sparkle:version>1</sparkle:version>'));
     assert.ok(feed.includes('<sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>'));
     assert.ok(feed.includes('Release notes from the archive directory.'));
+    assert.ok(feed.includes('sparkle:format="markdown"'));
+    assert.ok(!feed.includes('[Unreleased]'));
     assert.ok(!feed.includes(privateKey));
     assert.equal(invoke('https://example.test/updates').status, 0);
     const sign = 'build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update';

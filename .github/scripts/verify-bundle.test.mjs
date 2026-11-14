@@ -16,7 +16,7 @@ import os, plistlib, sys
 from pathlib import Path
 name = Path(sys.argv[0]).name
 if name == 'tiffutil':
-    print('Image Width: 18 Image Length: 18\\nImage Width: 36 Image Length: 36')
+    print('Image Width: 20 Image Length: 20\\nImage Width: 40 Image Length: 40')
 elif name == 'lipo':
     print(os.environ['TEST_EXTENSION_ARCHS'] if 'BuckleFinder.appex' in sys.argv[-1] else os.environ['TEST_ARCHS'])
 elif '--entitlements' in sys.argv:

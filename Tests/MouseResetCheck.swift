@@ -124,14 +124,16 @@ enum MouseResetCheck {
     @MainActor private static func makeNativeReset(
         workspace: any MouseResetWorkspace, stopTimeout: Duration = .seconds(10),
         recovery: MouseResetRecoveryStore? = nil,
-        settleServices: @escaping () async throws -> Void = {},
+        settleServices: @escaping (Duration) async throws -> Void = { _ in },
+        configuredWaitSeconds: @escaping () throws -> Int = { 3 },
         configuredTools: @escaping () throws -> [MouseResetTool]
     ) -> NativeMouseReset {
         NativeMouseReset(
             workspace: workspace, stopTimeout: stopTimeout,
             recovery: recovery
                 ?? MouseResetRecoveryStore(directory: recoveryRoot.appendingPathComponent(UUID().uuidString)),
-            settleServices: settleServices, configuredTools: configuredTools)
+            settleServices: settleServices, configuredWaitSeconds: configuredWaitSeconds,
+            configuredTools: configuredTools)
     }
 
     @MainActor static func main() async {
@@ -572,15 +574,18 @@ enum MouseResetCheck {
         } catch {}
         precondition(!untouched.isTerminated)
 
-        var settled = false
+        var settled: Duration?
+        var waitSeconds = 7
         let settlingWorkspace = FakeResetWorkspace()
         settlingWorkspace.running[moom] = FakeRunningTool(moom)
         let settling = makeNativeReset(
-            workspace: settlingWorkspace, settleServices: { settled = true },
+            workspace: settlingWorkspace, settleServices: { settled = $0 },
+            configuredWaitSeconds: { waitSeconds },
             configuredTools: { MouseResetTool.defaults })
         try await settling.perform(.stoppingApplications)
+        waitSeconds = 12
         try await settling.perform(.restartingApplications)
-        precondition(settled && settlingWorkspace.launches == [moom])
+        precondition(settled == .seconds(7) && settlingWorkspace.launches == [moom])
     }
 
     @MainActor private static func verifyTerminationRecovery() async throws {

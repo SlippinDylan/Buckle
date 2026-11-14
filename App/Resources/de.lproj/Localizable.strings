@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "Ein vorheriges Zurücksetzen wurde unterbrochen. Sollen die dabei geschlossenen Apps wieder geöffnet werden? „Später“ behält den Wiederherstellungseintrag.";
 "mouse.recovery.later" = "Später";
 "mouse.recovery.restore" = "Wiederherstellen";
+"mouse.settings.timing" = "Wartezeit";
+"mouse.settings.wait" = "Wartezeit vor erneutem Öffnen";
+"mouse.settings.wait.seconds" = "%@ s";
+"mouse.settings.wait.help" = "Nach dem Neustart der Systemdienste vor dem erneuten Öffnen der Apps warten. Standard: 3 Sekunden. Bereich: 0–60 Sekunden; 0 überspringt die Wartezeit.";

@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "이전 마우스 재설정이 중단되었습니다. 종료했던 앱을 다시 열까요? 나중에를 선택하면 복원 기록이 유지됩니다.";
 "mouse.recovery.later" = "나중에";
 "mouse.recovery.restore" = "복원";
+"mouse.settings.timing" = "대기 시간";
+"mouse.settings.wait" = "앱을 다시 열기 전 대기";
+"mouse.settings.wait.seconds" = "%@초";
+"mouse.settings.wait.help" = "시스템 서비스를 새로 고친 후 앱을 다시 열기 전에 대기합니다. 기본값은 3초이며 0–60초로 설정할 수 있습니다. 0은 대기하지 않습니다.";

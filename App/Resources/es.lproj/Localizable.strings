@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "Se interrumpió un restablecimiento anterior del ratón. ¿Quieres volver a abrir las aplicaciones que se cerraron? «Más tarde» conserva el registro de recuperación.";
 "mouse.recovery.later" = "Más tarde";
 "mouse.recovery.restore" = "Restaurar";
+"mouse.settings.timing" = "Tiempo de espera";
+"mouse.settings.wait" = "Espera antes de reabrir las apps";
+"mouse.settings.wait.seconds" = "%@ s";
+"mouse.settings.wait.help" = "Esperar tras reiniciar los servicios del sistema antes de reabrir las apps. Predeterminado: 3 segundos. Intervalo: 0–60 segundos; 0 omite la espera.";

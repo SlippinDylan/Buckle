@@ -25,12 +25,18 @@ public enum BrowserLanguage: String, CaseIterable, Sendable {
         switch self {
         case .simplifiedChinese: "zh-CN"
         case .traditionalChinese: "zh-TW"
+        case .japanese: "ja-JP"
         default: rawValue
         }
     }
 
     public var arguments: [String] {
         // Chromium treats positional arguments as startup URLs; pass language switches only.
-        ["--lang=\(chromiumLocale)", "--accept-lang=\(chromiumLocale)"]
+        let acceptedLanguages = self == .japanese ? "ja-JP,ja" : chromiumLocale
+        return ["--lang=\(chromiumLocale)", "--accept-lang=\(acceptedLanguages)"]
+    }
+
+    public var environment: [String: String] {
+        self == .japanese ? ["TZ": "Asia/Tokyo"] : [:]
     }
 }

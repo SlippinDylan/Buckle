@@ -37,7 +37,7 @@ template = subprocess.run(
     ['tiffutil', '-info', str(app / 'Contents/Resources/MenuBarIconTemplate.tiff')],
     check=True, capture_output=True, text=True)
 assert re.findall(r'Image Width: (\d+) Image Length: (\d+)', template.stdout + template.stderr) == [
-    ('18', '18'), ('36', '36')], 'The menu-bar template must contain both 1x and 2x images'
+    ('20', '20'), ('40', '40')], 'The menu-bar template must contain both 1x and 2x images'
 assert not (app / 'Contents/Resources/AppIcon.icns').exists(), 'The previous app icon must not be bundled'
 for key in ('CFBundleShortVersionString', 'CFBundleVersion'):
     assert host_info[key] == extension_info[key], f'Mismatched {key}'

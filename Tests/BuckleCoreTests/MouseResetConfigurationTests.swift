@@ -42,3 +42,23 @@ import Testing
     }
     #expect(throws: CocoaError.self) { try MouseResetTool(applicationURL: directory) }
 }
+
+@Test func mouseResetWaitDefaultsPersistsAndRejectsInvalidValues() throws {
+    let suite = "Buckle.MouseResetWaitTests.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let preferences = MouseResetPreferences(defaults: defaults)
+    #expect(try preferences.loadServiceWaitSeconds() == 3)
+    for seconds in [0, 7, 60] {
+        try preferences.saveServiceWaitSeconds(seconds)
+        #expect(try MouseResetPreferences(defaults: defaults).loadServiceWaitSeconds() == seconds)
+    }
+    for seconds in [-1, 61] {
+        #expect(throws: (any Error).self) { try preferences.saveServiceWaitSeconds(seconds) }
+        #expect(try preferences.loadServiceWaitSeconds() == 60)
+    }
+    for invalid in ["broken" as Any, 3.5, -1, 61] {
+        defaults.set(invalid, forKey: "mouseReset.serviceWaitSeconds")
+        #expect(throws: (any Error).self) { try preferences.loadServiceWaitSeconds() }
+    }
+}

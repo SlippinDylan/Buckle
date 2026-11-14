@@ -51,6 +51,7 @@ jobs:
           await appendFile(process.env.GITHUB_ENV,
             `VERSION=${manifest.version}\nBUILD=${manifest.build}\nDMG_NAME=Buckle-${manifest.version}.dmg\n`);
           JS
+          node .github/scripts/release-notes.mjs --root published-source --tag "$TAG" --check
           test "$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq '.visibility')" = PUBLIC
           test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = false
           test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')" = false
@@ -61,8 +62,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/buckle-updates"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern "$DMG_NAME" --dir "$RUNNER_TEMP/buckle-updates"
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' \
-            > "$RUNNER_TEMP/buckle-updates/${DMG_NAME%.dmg}.md"
+          node .github/scripts/release-notes.mjs --root published-source --tag "$TAG" \
+            --output "$RUNNER_TEMP/buckle-updates/${DMG_NAME%.dmg}.md"
       - name: Resolve pinned Sparkle tools
         run: bash Scripts/resolve-dependencies.sh
       - name: Verify published app identity and update configuration

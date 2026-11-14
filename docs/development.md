@@ -27,7 +27,7 @@ bash Scripts/check.sh
 
 需要完整构建时运行 `bash Scripts/build.sh Debug` 或 `bash Scripts/build.sh Release`。输出在 `build/DerivedData/Build/Products/`。构建后自动运行 `Scripts/verify-bundle.sh`，检查主应用及内嵌扩展的签名、ad-hoc Hardened Runtime 下的库验证例外、版本一致性、架构和扩展权限，以及 Sparkle 框架、内部组件、架构覆盖与更新校验配置；CI 与本地构建共用该检查。所有构建检查都要求主应用和 Finder 扩展分别使用固定标识 `studio.slippindylan.Buckle` 与 `studio.slippindylan.Buckle.Finder`。开发检查允许单架构；分发入口额外传入 `--distribution`，要求两者均包含 arm64 和 x86_64。DMG 创建及更新发布的挂载检查采用同一分发规则。应用图标的设计源为仓库根目录的 `Buckle.icon`，保留用户提供的 Icon Composer 文档和素材。Debug、Release 的主应用均设置 `ASSETCATALOG_COMPILER_APPICON_NAME = Buckle`，并将文档加入 Resources；由 Xcode 编译 `Assets.car`、生成旧系统兼容的 `Buckle.icns`，合并 Info.plist 图标元数据。关于页通过 `NSApp.applicationIconImage` 读取同一图标，不单独复制图标。构建检查同时校验图标元数据和资源，拒绝捆绑旧版 `AppIcon.icns`。
 
-菜单栏空闲状态使用独立的线稿模板，设计源为 `App/Resources/MenuBarIconTemplate.svg`，不从彩色应用图标提取轮廓。`MenuBarIconTemplate.png` 为 18×18 的 1× 图，`MenuBarIconTemplate@2x.png` 为 36×36 的 Retina 图，均按 18pt 显示，并随系统明暗外观着色。修改线稿时同步更新 SVG 和两张 PNG；Xcode 通过 `COMBINE_HIDPI_IMAGES` 将两种尺寸合并成 `MenuBarIconTemplate.tiff`，构建校验确认其中同时包含 18px 和 36px 图像。SVG 仅保留在源码中，不作为运行时资源打包。鼠标重置期间及完成后保留进度、成功和失败状态图标。README 的 `docs/images/readme/app-icon.png` 使用 Icon Composer 导出，文档截图来自实际运行的应用。
+菜单栏空闲状态使用独立的线稿模板，设计源为 `App/Resources/MenuBarIconTemplate.svg`，不从彩色应用图标提取轮廓。`MenuBarIconTemplate.png` 为 20×20 的 1× 图，`MenuBarIconTemplate@2x.png` 为 40×40 的 Retina 图，均按 20pt 显示，使用已确认的加粗线稿，并随系统明暗外观着色。修改线稿时同步更新 SVG 和两张 PNG；Xcode 通过 `COMBINE_HIDPI_IMAGES` 将两种尺寸合并成 `MenuBarIconTemplate.tiff`，构建校验确认其中同时包含 20px 和 40px 图像。SVG 仅保留在源码中，不作为运行时资源打包。鼠标重置期间及完成后保留进度、成功和失败状态图标。README 的 `docs/images/readme/app-icon.png` 使用 Icon Composer 导出，文档截图来自实际运行的应用。
 
 ```bash
 "$(xcode-select -p)/../Applications/Icon Composer.app/Contents/Executables/ictool" \
@@ -35,7 +35,15 @@ bash Scripts/check.sh
   --platform macOS --rendition Default --width 1024 --height 1024 --scale 1
 ```
 
-CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main 的检查全部通过且 manifest 的打包开关开启时，同一次构建继续生成 `Buckle-<version>.dmg`、SHA256 校验文件和发布说明，再由独立的 GitHub 发布任务自动创建稳定 Release；不经本地下载或上传。PR 不打包发布，编译检查任务只有只读权限。发布任务只接收当前 CI 的安装包；已发布的版本跳过，不覆盖已有附件，新增版本须递增 manifest。构建产物保留 7 天，Release 附件长期保存。不再使用独立 Package 工作流。
+CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main 的检查全部通过且 manifest 的打包开关开启时，同一次构建继续生成 `Buckle-<version>.dmg`、SHA256 校验文件和发布说明，再由独立的 GitHub 发布任务自动创建稳定 Release；不经本地下载或上传。PR 不打包发布，编译检查任务只有只读权限。发布任务只接收当前 CI 的安装包；发布前通过 GitHub Git References／Tags API 检查已有版本标签最终指向本次构建的提交，兼容普通标签与附注标签；不一致或查询失败时停止，不自动移动或覆盖标签。标签不存在时由 GitHub CLI 按本次构建提交创建。已发布的版本跳过，不覆盖已有附件，新增版本须递增 manifest。构建产物保留 7 天，Release 附件长期保存。不再使用独立 Package 工作流。
+
+### 版本变更说明
+
+根目录 `CHANGELOG.md` 是 GitHub Release 与 Sparkle 更新说明的唯一内容来源，全部使用英文，面向用户说明真实变化，不直接堆叠 commit message。开发时写在 `## [Unreleased]` 下；准备发布时移入 `## [版本] - YYYY-MM-DD`，分类使用 Added、Improved、Changed、Fixed、Removed、Security，必要时使用 Known Issues；没有内容的分类省略，每条为单行 `- ` 列表。
+
+`node .github/scripts/release-notes.mjs --check` 验证当前 manifest 对应版本的说明；`--tag v0.1.2` 额外核对目标标签；默认输出当前版本段落，`--output <路径>` 写入指定文件。脚本拒绝重复版本、非法标题或日期、缺失版本、空分类及占位内容。英文和内容真实性仍需人工审核，脚本不替代语义审查。`Scripts/check.sh` 包含此检查；CI 只把当前版本段落作为 Release 正文，发布前再次核对构建产物里的正文。
+
+更新源工作流从已发布标签中的 CHANGELOG 与 manifest 提取同一段文字，不读取可手动修改的 GitHub Release 正文。同名 `.md` 文件交给锁定的 Sparkle 2.10.0 `generate_appcast --embed-release-notes` 处理 Markdown 并嵌入签名清单，不自行维护第二份 HTML。此规则从 0.1.2 开始；旧标签没有 CHANGELOG 时会明确拒绝重建其更新说明，不改写已有发布或线上清单。依据：[Sparkle 2.10.0 更新说明实现](https://github.com/sparkle-project/Sparkle/blob/2.10.0/generate_appcast/FeedXML.swift)。
 
 通知工作流读取默认分支上的脚本，不执行 fork PR 的代码或下载其构建产物。权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。通知失败会让相应工作流失败，不伪装为成功。目前没有自动重试，需通过 GitHub 重新运行失败任务。`Publish Update Feed` 的开始及完成结果也发送通知；GitHub Release 发布消息只说明 Release 已发布，不代表更新清单已同步。
 
@@ -44,6 +52,12 @@ CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main
 Chromium 浏览器只传语言开关，不传 `-AppleLanguages` 和独立的语言列表参数。Chromium 将非开关参数作为启动网址；例如独立的 `(ja)` 会被当成 `http://(ja)/`，覆盖浏览器原本的新标签页或启动页选择。Safari 的语言参数保留在独立分支。继续沿用浏览器现有资料，不指定网址、不创建独立用户目录或强制切换用户资料。
 
 本机使用已安装的 0.1.0 从菜单启动 Chrome Beta 159.0.8154.6，复现了该错误；原日语脚本和修复后的实际 `BrowserLauncher` 都打开 `chrome://newtab/`。这项验收只覆盖该浏览器的日语启动，不代表其他浏览器和所有语言均已实机验收。依据：[Chromium 参数解析](https://github.com/chromium/chromium/blob/main/base/command_line.cc)。
+
+日语脚本对照：通过 `NSWorkspace.OpenConfiguration.environment` 传递 `TZ=Asia/Tokyo`，只影响新启动的浏览器进程，不修改系统时区。使用当前实际启动器的独立检查程序启动 Chrome Beta 159.0.8154.6，网页返回 `language=ja-JP`、`languages=[ja-JP,ja]`、`timeZone=Asia/Tokyo`、`offset=-540`，启动页仍为 `chrome://newtab/`；原脚本返回相同结果。`offset` 是 UTC 减本地时间的分钟数，日本 UTC+9 对应 -540。这不是已安装 Buckle 新版本的验收，Safari 及其他浏览器仍需实测。依据：[NSWorkspace 启动环境](https://developer.apple.com/documentation/appkit/nsworkspace/openconfiguration/environment)。
+
+这两种启动方式下，`Intl.DateTimeFormat().resolvedOptions().locale` 仍为 `zh-CN`。Chrome 在 macOS 上以应用的首选本地化覆盖自身地区格式，网页语言和时区参数不等同于这项设置。尚未找到同时满足“临时生效、不修改持久化偏好、不创建用户目录、不添加启动网址”的可靠地区格式覆盖方式；不把语言参数测试通过视为地区格式已经切换。依据：[对应版本 Chromium 的 macOS 本地化实现](https://github.com/chromium/chromium/blob/159.0.8154.6/ui/base/l10n/l10n_util_mac.mm)。
+
+鼠标脚本对照：默认四款应用与脚本一致；DockDoor、OneSwitch 在脚本里只用于状态显示，不是退出或恢复对象。按后续需求统一为“退出所选且原本运行的应用 → 刷新服务 → 恢复这些应用”，未运行或已卸载的应用不启动。服务刷新后默认等待三秒，可在鼠标重置设置中调整；不照搬旧脚本各组应用之间的固定等待。原脚本的 MonitorControlHelper `bootout` 调用把 bundle ID 放在路径参数位置且忽略错误，不能据此认定服务卸载有效；当前通过运行实例与恢复记录管理 helper，不新增无依据的 launchd 卸载。本轮仅完成代码与脚本对照，未执行真实服务刷新或管理员权限重置。
 
 ### 命令边界与运行观测
 
@@ -84,10 +98,10 @@ Debug 的 `BUCKLE_UPDATER_ENABLED=NO`，不要求更新源或私钥；PR 构建�
 
 ### 系统功能
 
-- 浏览器启动沿用个人脚本的资料目录语义：不传 `--user-data-dir`、`--profile-directory` 或无痕参数，不创建、复制或修改用户资料目录。Chromium 使用已有浏览器资料及其自身的用户选择逻辑；多个资料时不猜测哪个账户应当打开。只传语言参数及本次进程的 AppleLanguages，不修改持久化语言偏好，不设置时区。启动前统一检查浏览器是否正在运行，已运行时只提示“浏览器已经在运行”，不退出或重启浏览器。旧版本已创建的 `~/Library/Application Support/Buckle/BrowserProfiles/` 保留原样，但不再用于启动，不自动合并或删除其中数据。依据：[Chromium 用户资料目录](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md)、[NSWorkspace 启动参数](https://developer.apple.com/documentation/appkit/nsworkspace/openconfiguration/arguments)。
+- 浏览器启动沿用个人脚本的资料目录语义：不传 `--user-data-dir`、`--profile-directory` 或无痕参数，不创建、复制或修改用户资料目录。Chromium 使用已有浏览器资料及其自身的用户选择逻辑；多个资料时不猜测哪个账户应当打开。Chromium 只传语言开关；Safari 使用本次进程的 AppleLanguages 参数。不修改持久化语言偏好。日语启动按原脚本传入 `TZ=Asia/Tokyo`，Chromium 参数为 `--lang=ja-JP --accept-lang=ja-JP,ja`；其他语言未约定唯一地区，保留系统时区。启动前统一检查浏览器是否正在运行，已运行时只提示“浏览器已经在运行”，不退出或重启浏览器。旧版本已创建的 `~/Library/Application Support/Buckle/BrowserProfiles/` 保留原样，但不再用于启动，不自动合并或删除其中数据。依据：[Chromium 用户资料目录](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md)、[NSWorkspace 启动参数](https://developer.apple.com/documentation/appkit/nsworkspace/openconfiguration/arguments)。
 - 应用语言偏好保存在 Buckle 的 UserDefaults；登录项状态以 `SMAppService.mainApp.status` 为准。内存提醒已移除，不再读取提醒偏好、定时采样或监听内存压力。
 - 鼠标重置：在「设置 → 鼠标重置」中用添加应用及逐行移除管理统一名单，默认包含 Moom、MonitorControl、BetterMouse、iShot Pro；应用选择器拒绝非 App 和 Buckle 自身，同一 bundle ID 不重复添加。名单以 bundle ID 与显示名称保存在 Buckle 的 `mouseReset.applications` 偏好中，未设置时使用默认名单，已保存的空名单不会恢复默认。名单记录损坏时停止鼠标重置并报告错误，不清空记录、不自动恢复默认名单；这与已卸载应用的跳过行为不同。通过系统按 bundle ID 查找已安装应用，用 NSRunningApplication 请求退出并等待其实际结束，通过 NSWorkspace 后台重启。失败回滚只恢复本次成功发出退出请求的已运行工具；未运行或拒绝退出的工具不会被恢复逻辑额外启动。每次重置均刷新当前用户的 `cfprefsd`；`tccd` 通过系统管理员授权执行固定命令刷新。不调用个人脚本、不打开终端、不获取或保存密码。不强制终止拒绝退出的工具，等待超时后报告失败并恢复可恢复的应用。
-- 重置流程：固定执行统一退出应用、刷新当前用户的偏好服务及不限用户的系统权限服务、统一重新打开、检查运行状态，不提供仅重启应用的模式。服务刷新沿用个人脚本的目的与范围，通过系统窗口请求管理员授权。执行时读取本次名单并快照正在运行的应用。已卸载或找不到的应用直接跳过，空名单或全都缺失也继续刷新服务；原本未运行的应用不会启动。偏好与权限服务刷新后保留原脚本的 3 秒等待，再统一恢复应用；该等待不代表已验证服务就绪。设置页在重置期间禁止编辑名单，恢复使用本次快照，不重新读取设置。进度按实际步骤推进，失败恢复完成后才显示结果；成功或失败状态保留到点击「确定」，菜单栏图标同步切换。图标的无障碍描述包含当前步骤或结果，完成与失败通过 Apple 无障碍通知播报。
+- 重置流程：固定执行统一退出应用、刷新当前用户的偏好服务及不限用户的系统权限服务、统一重新打开、检查运行状态，不提供仅重启应用的模式。服务刷新沿用个人脚本的目的与范围，通过系统窗口请求管理员授权。执行时读取本次名单并快照正在运行的应用。已卸载或找不到的应用直接跳过，空名单或全都缺失也继续刷新服务；原本未运行的应用不会启动。偏好与权限服务刷新后，按「设置 → 鼠标重置」中的等待秒数再统一恢复应用；默认 3 秒，可设 0–60 整秒，0 表示不额外等待。等待秒数单独保存在 `mouseReset.serviceWaitSeconds`，不改变已有应用名单格式；重置开始前读取并固定本次值，设置页在重置中禁止编辑。该等待不代表已验证服务就绪。设置页在重置期间禁止编辑名单，恢复使用本次快照，不重新读取设置。进度按实际步骤推进，失败恢复完成后才显示结果；成功或失败状态保留到点击「确定」，菜单栏图标同步切换。图标的无障碍描述包含当前步骤或结果，完成与失败通过 Apple 无障碍通知播报。
 - Finder：自定义菜单文字通过共享配置中的可选 `language` 字段跟随主应用当前运行语言，旧配置兼容；主应用初始化时固定本次语言，语言设置仍在重启 Buckle 后生效。扩展按该语言读取自身资源，不更改系统语言。内嵌 Finder Sync 扩展通过 `menu(for:)` 返回一级菜单项，使用系统 AirDrop 的标题和图标。扩展观察根目录及已挂载卷，并处理卷挂载变化。通过带参数校验的 `buckle://finder/airdrop` URL 将文件选择交给包含它的主应用；主应用再次检查开关并调用公开 NSSharingService，不使用 shell 拼接文件路径。打开主应用失败时，扩展切回主线程显示重试提示，不只记录日志。
 - Finder 开关：`~/Library/Application Support/Buckle/Finder/menus.json`，目录权限 700、文件权限 600，原子保存；扩展每次右键重新读取。主应用负责写入，沙盒扩展仅有该目录的 home-relative read-only 临时例外，不使用 App Groups、Team 或 provisioning。真实用户目录通过 `getpwuid_r` 读取，避免 Foundation 将路径重定向到扩展容器。配置文件缺失时四项右键菜单功能默认全部关闭；已有配置保留。配置损坏时明确报错，确认恢复默认前先备份原文件，恢复后四项功能全部关闭。
 - 菜单栏菜单底部显示扩展缺失、未注册、未启用或操作失败的状态提示，启用后隐藏；访达扩展的状态与必要处理入口统一位于「设置 → 权限」的访达右键菜单行；已启用时显示绿色文字和勾选标识，异常时才显示对应处理操作。配置解码失败有独立状态和确认后恢复默认配置的入口，恢复前在同目录创建 `menus-backup-<UUID>.json`；备份失败则不覆盖原文件。已运行时重新打开 App 显示设置窗口，Finder 的错误说明直接指向菜单栏设置入口。通过系统公开接口打开扩展管理界面，通过 `pluginkit` 注册和请求启用，随后读取实际状态，不把命令执行成功等同于系统已启用。菜单打开及应用激活时刷新状态。单独关闭 AirDrop 入口不会禁用整个扩展，便于以后增加其他入口。

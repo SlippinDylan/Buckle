@@ -31,6 +31,9 @@ struct MouseResetTool: Codable, Equatable, Sendable {
 struct MouseResetPreferences {
     let defaults: UserDefaults
     private let key = "mouseReset.applications"
+    private let serviceWaitKey = "mouseReset.serviceWaitSeconds"
+    static let defaultServiceWaitSeconds = 3
+    static let serviceWaitRange = 0...60
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
@@ -45,6 +48,19 @@ struct MouseResetPreferences {
     func save(_ tools: [MouseResetTool]) throws {
         try validate(tools)
         defaults.set(try JSONEncoder().encode(tools), forKey: key)
+    }
+
+    func loadServiceWaitSeconds() throws -> Int {
+        guard let stored = defaults.object(forKey: serviceWaitKey) else { return Self.defaultServiceWaitSeconds }
+        guard let seconds = stored as? Int, Self.serviceWaitRange.contains(seconds) else {
+            throw CocoaError(.coderReadCorrupt)
+        }
+        return seconds
+    }
+
+    func saveServiceWaitSeconds(_ seconds: Int) throws {
+        guard Self.serviceWaitRange.contains(seconds) else { throw CocoaError(.coderInvalidValue) }
+        defaults.set(seconds, forKey: serviceWaitKey)
     }
 
     private func validate(_ tools: [MouseResetTool]) throws {

@@ -219,6 +219,16 @@ enum NativeMenuCheck {
                 abs(control.frame.maxX - row.bounds.maxX) < 0.5, "Settings switches must align to the trailing edge")
         }
         settings.selectCategory(.mouseReset)
+        guard let wait = descendants(of: settings.view).compactMap({ $0 as? NSStepper }).first else {
+            preconditionFailure("Mouse reset settings must expose a service wait control")
+        }
+        precondition(wait.integerValue == 3 && wait.minValue == 0 && wait.maxValue == 60 && !wait.valueWraps)
+        wait.integerValue = 7
+        wait.sendAction(wait.action, to: wait.target)
+        do {
+            let savedWait = try preferences.loadServiceWaitSeconds()
+            precondition(savedWait == 7)
+        } catch { preconditionFailure("\(error)") }
         let mouseButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
         precondition(mouseButtons.contains { $0.identifier?.rawValue == "mouse-reset.add" })
         let removals = mouseButtons.filter { $0.action == NSSelectorFromString("removeMouseResetApplication:") }
@@ -233,6 +243,8 @@ enum NativeMenuCheck {
         settings.refresh()
         let busyButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
         precondition(busyButtons.allSatisfy { !$0.isEnabled })
+        let busyWaits = descendants(of: settings.view).compactMap { $0 as? NSStepper }
+        precondition(busyWaits.count == 1 && busyWaits.allSatisfy { !$0.isEnabled })
         lifecycle.end(.mouseReset)
         settings.selectCategory(.permissions)
         let permissionButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }

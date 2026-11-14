@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node .github/scripts/sync-version.mjs --check
+node .github/scripts/release-notes.mjs --check
 swift test
 swift build --product BucklePermissionSupport
 permission_support_bin=$(swift build --show-bin-path)
@@ -18,6 +19,10 @@ mkdir -p build/Checks
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/Localization.swift Tests/CommandRunnerCheck.swift -o build/Checks/command-runner
 build/Checks/command-runner
+xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
+    App/BrowserLauncher.swift App/Core/BrowserLanguage.swift App/Localization.swift Tests/BrowserLauncherCheck.swift \
+    -o build/Checks/browser-launcher
+build/Checks/browser-launcher
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/MouseResetController.swift App/Core/MouseResetConfiguration.swift App/Core/ApplicationLifecycle.swift App/Localization.swift \
     App/SystemMemoryPanel.swift App/ApplicationRecovery.swift Tests/MouseResetCheck.swift \

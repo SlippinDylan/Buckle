@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "Une précédente réinitialisation de la souris a été interrompue. Rouvrir les applications fermées ? « Plus tard » conserve les informations de restauration.";
 "mouse.recovery.later" = "Plus tard";
 "mouse.recovery.restore" = "Restaurer";
+"mouse.settings.timing" = "Délai";
+"mouse.settings.wait" = "Attente avant de rouvrir les apps";
+"mouse.settings.wait.seconds" = "%@ s";
+"mouse.settings.wait.help" = "Attendre après le redémarrage des services système avant de rouvrir les apps. Par défaut : 3 secondes. De 0 à 60 secondes ; 0 supprime l’attente.";

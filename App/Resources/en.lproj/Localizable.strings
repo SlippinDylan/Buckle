@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "A previous mouse reset was interrupted. Reopen the applications it closed? Choosing Later keeps the recovery record.";
 "mouse.recovery.later" = "Later";
 "mouse.recovery.restore" = "Restore";
+"mouse.settings.timing" = "Timing";
+"mouse.settings.wait" = "Wait before reopening apps";
+"mouse.settings.wait.seconds" = "%@ s";
+"mouse.settings.wait.help" = "Wait after refreshing system services, before reopening apps. Default: 3 seconds. Range: 0–60 seconds; 0 skips the wait.";

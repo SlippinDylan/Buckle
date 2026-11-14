@@ -52,7 +52,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             guard let logo = NSImage(named: "MenuBarIconTemplate") else {
                 preconditionFailure("The application bundle must contain the menu-bar logo")
             }
-            logo.size = NSSize(width: 18, height: 18)
+            logo.size = NSSize(width: 20, height: 20)
             image = logo
         }
         image?.isTemplate = true

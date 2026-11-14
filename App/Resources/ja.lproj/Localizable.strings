@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "前回のマウスリセットが中断されました。終了したアプリを開き直しますか？「後で」を選ぶと復元記録が保持されます。";
 "mouse.recovery.later" = "後で";
 "mouse.recovery.restore" = "復元";
+"mouse.settings.timing" = "待機時間";
+"mouse.settings.wait" = "アプリを再度開く前の待機";
+"mouse.settings.wait.seconds" = "%@ 秒";
+"mouse.settings.wait.help" = "システムサービスの更新後、アプリを再度開くまで待機します。デフォルトは3秒、範囲は0〜60秒です。0は待機なしです。";

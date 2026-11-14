@@ -101,3 +101,7 @@
 "mouse.recovery.help" = "上次鼠标重置被中断。是否重新打开当时关闭的应用？选择“稍后”会保留恢复记录。";
 "mouse.recovery.later" = "稍后";
 "mouse.recovery.restore" = "恢复";
+"mouse.settings.timing" = "等待时间";
+"mouse.settings.wait" = "重新打开应用前等待";
+"mouse.settings.wait.seconds" = "%@ 秒";
+"mouse.settings.wait.help" = "刷新系统服务后，等待再重新打开应用。默认 3 秒，可设为 0–60 秒；0 表示不额外等待。";

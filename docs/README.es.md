@@ -7,8 +7,23 @@
 
 Buckle es una app nativa de macOS en la barra de menús que reúne herramientas del sistema, inicio de navegadores en otro idioma y acciones habituales del Finder. Funciona en segundo plano sin icono en el Dock.
 
+**[Descargar para macOS](https://github.com/SlippinDylan/Buckle/releases/latest)** · [Guía de desarrollo](development.md)
+
 > [!NOTE]
-> Buckle 0.1.1 aún no tiene un instalador público. Sigue las instrucciones de compilación de abajo.
+> Este README describe el código fuente actual. Consulta los cambios y las limitaciones de cada versión descargada en sus notas de publicación.
+
+## Instalación y primer uso
+
+Requiere **macOS 15 o posterior**, en Apple Silicon o Intel. Las compilaciones de CI tienen como destino Universal 2.
+
+1. Descarga `Buckle-<version>.dmg` desde **Assets** de la [última versión en GitHub](https://github.com/SlippinDylan/Buckle/releases/latest). Los archivos del código fuente son para desarrollo, no son instaladores.
+2. Para actualizar, elige primero «Salir» en el menú de Buckle y espera a que termine. Abre el DMG y arrastra `Buckle.app` a «Aplicaciones», reemplazando la copia anterior si es necesario.
+3. Abre `/Applications/Buckle.app`. Buckle aparece en la barra de menús sin icono en el Dock. Mantén una sola copia instalada.
+4. Usa las herramientas o activa las acciones del Finder desde la barra de menús. Las cuatro acciones están desactivadas al principio; tus selecciones se guardan.
+5. Activa la extensión del Finder o concede los permisos solicitados en **Ajustes → Permisos**. El estado se actualiza automáticamente; el texto verde y una marca indican acceso concedido o una extensión activa.
+
+> [!IMPORTANT]
+> Las compilaciones usan firma ad hoc y no están notarizadas. Una versión descargada puede necesitar autorización en Ajustes del Sistema; tras una actualización puede ser necesario volver a conceder permisos.
 
 ## Funciones
 
@@ -27,37 +42,32 @@ Buckle es una app nativa de macOS en la barra de menús que reúne herramientas 
   </tr>
 </table>
 
-### Ajustes
+## Ajustes
 
 Configura el inicio de sesión y el idioma en **Ajustes → General**. La interfaz sigue macOS por defecto. Puedes elegir inglés, chino simplificado o tradicional, japonés, coreano, alemán, francés o español. Reinicia Buckle para aplicar el cambio de idioma.
+
+En **Ajustes → Restablecimiento**, añade o elimina apps y configura la espera antes de reabrirlas entre 0 y 60 segundos, con 3 segundos de forma predeterminada. Los cambios se guardan automáticamente; la edición se desactiva durante un restablecimiento.
 
 <p align="center">
   <img src="images/readme/general-settings.png" width="340" alt="Ajustes generales">
   <img src="images/readme/permissions-settings.png" width="340" alt="Estado de los permisos">
 </p>
 
-Las capturas muestran la interfaz en inglés. Los menús varían según los navegadores instalados, las acciones activadas y los archivos copiados.
-
-## Instalación y primer uso
-
-Requiere **macOS 15 o posterior**, en Apple Silicon o Intel. Las compilaciones de CI tienen como destino Universal 2.
-
-1. Sigue los pasos de compilación e instalación de abajo y abre la app instalada desde `/Applications`.
-2. Pulsa el icono de la barra de menús para usar una herramienta o activar una acción del Finder. Las cuatro acciones están desactivadas inicialmente; después se guardan tus elecciones.
-3. Abre **Ajustes → Permisos** para activar la extensión del Finder o conceder los accesos solicitados. El estado se actualiza automáticamente; el texto verde y la marca indican acceso concedido o extensión activada.
-
-Las compilaciones usan firma ad hoc y no están notarizadas. Una versión descargada puede necesitar autorización en Ajustes del Sistema; tras una actualización puede ser necesario volver a conceder permisos.
+Las capturas muestran la interfaz en inglés y pueden diferir de tu versión instalada. Los menús dependen de los navegadores, las acciones activadas y los archivos copiados.
 
 ## Antes de usar las herramientas
 
 - **Ventana de memoria:** abre manualmente macOS LowMemoryPanel, incluso con un uso normal de memoria. Su aviso integrado no es un diagnóstico de Buckle. Utiliza una ruta privada de depuración del sistema. Buckle comprueba la ventana específica de advertencia de memoria, restaura el ajuste temporal e informa del error si no puede confirmarla. La compatibilidad debe probarse en cada versión de macOS. Requiere Accesibilidad y automatización de System Events; no supervisa la memoria en segundo plano.
 - **Restablecer ratón:** gestiona la lista en **Ajustes → Restablecimiento**. Inicialmente incluye Moom, MonitorControl, BetterMouse e iShot Pro. En cada operación se cierran las aplicaciones de la lista que estén en ejecución, se actualizan los servicios compartidos de preferencias y permisos del sistema de macOS y se vuelven a abrir esas aplicaciones. Solo se vuelven a abrir las aplicaciones que ya estaban en ejecución. Actualizar los servicios puede afectar brevemente a otras aplicaciones y requiere autorización de administrador. Se omiten las aplicaciones desinstaladas; los servicios se actualizan incluso con la lista vacía. La lista de recuperación se guarda. Tras una interrupción, Buckle ofrece volver a abrir las aplicaciones en el siguiente inicio; elegir «Más tarde» conserva el registro.
 - **Reiniciar la barra de menús:** reinicia el SystemUIServer del usuario actual sin sudo. Puede que no solucione los iconos gestionados por otras apps.
-- **Perfiles del navegador:** utiliza los datos existentes y las sesiones guardadas del navegador, sin crear un perfil independiente. La selección entre varios perfiles sigue el comportamiento del navegador. Cierra el navegador antes de cambiar su idioma de inicio. Si ya está abierto, Buckle solo muestra un aviso. No cambia la IP ni la zona horaria, ni garantiza el idioma de los sitios web.
+- **Perfiles del navegador:** utiliza los datos existentes y las sesiones guardadas del navegador, sin crear un perfil independiente. La selección entre varios perfiles sigue el comportamiento del navegador. Cierra el navegador antes de cambiar su idioma de inicio. Si ya está abierto, Buckle solo muestra un aviso. Al iniciar en japonés se solicita la zona horaria de Tokio para el proceso del navegador, como en el script original; los demás idiomas conservan la zona del sistema. No cambia los ajustes de macOS ni la IP, ni garantiza el idioma o los formatos regionales de los sitios. El comportamiento de la zona horaria solo se ha comprobado con Chrome Beta.
 - **Finder:** la extensión copia las rutas directamente; las demás acciones inician Buckle cuando hace falta. Para mover archivos, cópialos en el Finder y haz clic derecho en la carpeta de destino o en su fondo. El movimiento requiere confirmación, no reemplaza elementos existentes y no se integra con Deshacer del Finder. Si falla parcialmente, se conservan los movimientos completados; revisa ambas carpetas antes de reintentar. El Finder determina la posición del menú. Los textos propios de Buckle en el menú de Finder siguen el idioma de la app tras reiniciarla; el nombre nativo de AirDrop sigue el sistema.
 - **Actualizaciones:** Sparkle está integrado. La comprobación manual está en **Ajustes → Acerca de**, y la automática en **General**. Las compilaciones de desarrollo y de pull request desactivan las actualizaciones; las compilaciones de publicación de CI en main las activan. La actualización en línea requiere un instalador publicado y un feed firmado.
 
 ## Compilar desde el código fuente
+
+<details>
+<summary>Mostrar los pasos de compilación y desarrollo</summary>
 
 Requiere Xcode 26 o posterior, Node.js y Python 3. No se necesita una cuenta de desarrollador de Apple para Debug.
 
@@ -82,6 +92,8 @@ Cierra cualquier Buckle en ejecución con **Salir** y espera a que termine antes
 open build/DerivedData/Build/Products/Debug/Buckle.app
 ```
 
+</details>
+
 ## Documentación de desarrollo
 
-La [guía de desarrollo](development.md) (chino simplificado) describe las comprobaciones, CI, empaquetado, publicación de actualizaciones, firma y validación en un Mac real. Los futuros instaladores públicos estarán en [GitHub Releases](https://github.com/SlippinDylan/Buckle/releases).
+La [guía de desarrollo](development.md) (en chino) incluye arquitectura, comprobaciones, paquetes CI, actualizaciones, firma y pruebas en Mac. Los instaladores publicados están en [GitHub Releases](https://github.com/SlippinDylan/Buckle/releases); las [notas de versión](../CHANGELOG.md) se mantienen en inglés.
