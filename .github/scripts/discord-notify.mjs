@@ -87,7 +87,7 @@ export async function enrichPackageResult(event, token, fetcher = fetch) {
   });
   if (!response.ok) throw new Error(`Cannot read packaging result: HTTP ${response.status}.`);
   const body = await response.json();
-  const jobs = body.jobs.filter(job => job.name === 'Build test DMG');
+  const jobs = body.jobs.filter(job => job.name === 'Build DMG');
   if (body.total_count > 100 || jobs.length !== 1 || !['success', 'skipped'].includes(jobs[0].conclusion)) {
     throw new Error('Unexpected packaging job result.');
   }

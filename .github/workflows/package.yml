@@ -34,7 +34,7 @@ jobs:
             echo 'Packaging is disabled in Config/Release/manifest.json. No DMG or artifact will be produced.' >> "$GITHUB_STEP_SUMMARY"
           fi
   package:
-    name: Build test DMG
+    name: Build DMG
     needs: gate
     if: github.ref == 'refs/heads/main' && needs.gate.outputs.enabled == 'true'
     runs-on: macos-26
@@ -45,7 +45,7 @@ jobs:
           persist-credentials: false
       - name: Validate source before packaging
         run: bash Scripts/check.sh
-      - name: Build Universal 2 test package
+      - name: Build Universal 2 package
         env:
           BUCKLE_VERSION: ${{ needs.gate.outputs.version }}
         run: |
@@ -53,17 +53,17 @@ jobs:
             -configuration Release -destination 'generic/platform=macOS' \
             -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
             -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-            BUCKLE_UPDATER_ENABLED=NO
+            BUCKLE_UPDATER_ENABLED=YES
           app=build/DerivedData/Build/Products/Release/Buckle.app
           bash Scripts/verify-bundle.sh --distribution "$app"
-          bash Scripts/create-dmg.sh "$app" "build/Buckle-$BUCKLE_VERSION-test.dmg"
-          (cd build && shasum -a 256 "Buckle-$BUCKLE_VERSION-test.dmg" > SHA256SUMS)
-          echo 'Universal 2 test package with ad-hoc signature. Not notarized; not a public release.' >> "$GITHUB_STEP_SUMMARY"
+          bash Scripts/create-dmg.sh "$app" "build/Buckle-$BUCKLE_VERSION.dmg"
+          (cd build && shasum -a 256 "Buckle-$BUCKLE_VERSION.dmg" > SHA256SUMS)
+          echo 'Universal 2 Release package with ad-hoc signature. Not notarized.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: Buckle-${{ needs.gate.outputs.version }}-test-${{ github.sha }}
+          name: Buckle-${{ needs.gate.outputs.version }}-${{ github.sha }}
           path: |
-            build/Buckle-*-test.dmg
+            build/Buckle-${{ needs.gate.outputs.version }}.dmg
             build/SHA256SUMS
           if-no-files-found: error
           retention-days: 7

@@ -51,7 +51,7 @@ test('disabled packaging is reported as skipped even when workflow succeeds', as
     assert.equal(options.headers.Authorization, 'Bearer fake-token');
     return { ok: true, json: async () => ({ total_count: 2, jobs: [
       { name: 'Check packaging switch', conclusion: 'success' },
-      { name: 'Build test DMG', conclusion: 'skipped' },
+      { name: 'Build DMG', conclusion: 'skipped' },
     ] }) };
   });
   assert.ok(notification('workflow_run', event).embeds[0].title.includes('skipped'));
