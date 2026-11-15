@@ -1,10 +1,12 @@
 import AppKit
 import OSLog
+import os.lock
 
 @main
 enum FinderPathCopyCheck {
     @MainActor static func main() async throws {
         try await verifyBackgroundMenuCallbacks()
+        try await verifyConcurrentMenuPublication()
         try verifySharedLanguage()
         let board = NSPasteboard.withUniqueName()
         defer { board.releaseGlobally() }
@@ -21,57 +23,169 @@ enum FinderPathCopyCheck {
             precondition(board.string(forType: .string) == urls.map(\.path).joined(separator: "\n"))
         }
         print(
-            "Finder menu actions accept background Objective-C callbacks; path copying preserves literal names without changing the user clipboard."
+            "Finder proxy menu actions preserve signed snapshots, reject stale tags, and accept background callbacks without changing the user clipboard."
         )
     }
 
     @MainActor private static func verifyBackgroundMenuCallbacks() async throws {
-        let files = [URL(fileURLWithPath: "/tmp/中文 '$(literal); #?.txt"), URL(fileURLWithPath: "/Volumes/Test Folder")]
-        let request = try FinderActionRequest(action: .airDrop, files: files).url()
-        var openCount = 0
-        var copyCount = 0
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer {
+            do { try FileManager.default.removeItem(at: root) } catch { preconditionFailure("\(error)") }
+        }
+        let store = FinderConfigurationStore(directory: root.appendingPathComponent("configuration"))
+        try store.save(
+            FinderConfiguration(
+                airDropEnabled: true, terminalEnabled: true, copyPathEnabled: true, moveEnabled: true))
+        try store.prepareMoveKey()
+        let key = try store.loadMoveKey()
+        let clipboardChangeCount = NSPasteboard.general.changeCount
+        let files = [root]
+        var receivedRequests: [URL] = []
+        var copiedFiles: [[URL]] = []
         let openRequest: @MainActor @Sendable (URL, Logger) -> Void = { received, _ in
             MainActor.preconditionIsolated()
-            precondition(Thread.isMainThread && received == request)
-            openCount += 1
-            precondition(openCount == 1)
+            precondition(Thread.isMainThread)
+            receivedRequests.append(received)
         }
         let copyFiles: @MainActor @Sendable ([URL], Logger) -> Void = { received, _ in
             MainActor.preconditionIsolated()
-            precondition(Thread.isMainThread && received == files)
-            copyCount += 1
-            precondition(copyCount == 1)
+            precondition(Thread.isMainThread)
+            copiedFiles.append(received)
         }
-        // Exercise the real Objective-C entry points from Finder's background callback context.
+        // Finder sends a new item across XPC, preserving tag/action but dropping representedObject.
         await Task.detached {
             var observedDirectories: Set<URL> = []
             let finder = BuckleFinderSync(
                 observeDirectories: { observedDirectories = $0 }, openRequest: openRequest, copyFiles: copyFiles)
             precondition(observedDirectories.contains(URL(fileURLWithPath: "/")))
             precondition(!Thread.isMainThread)
-            for name in ["performAction:", "copyPath:"] {
-                let selector = NSSelectorFromString(name)
-                precondition(finder.responds(to: selector))
-                _ = finder.perform(selector, with: NSMenuItem())
-                let invalid = NSMenuItem()
-                invalid.representedObject = "invalid payload"
-                _ = finder.perform(selector, with: invalid)
-                let valid = NSMenuItem()
-                if name == "performAction:" {
-                    valid.representedObject = request
-                } else {
-                    valid.representedObject = files
-                }
-                _ = finder.perform(selector, with: valid)
+            let firstMenu = finder.makeMenu(for: .items(files), store: store)
+            precondition(firstMenu.items.count == 4, "Missing Finder menu actions")
+            let proxies = firstMenu.items.map { item in
+                precondition(item.tag > 0 && item.representedObject == nil)
+                let proxy = NSMenuItem(title: item.title, action: item.action, keyEquivalent: "")
+                proxy.tag = item.tag
+                return proxy
             }
+            precondition(Set(proxies.map(\.tag)).count == 4)
+            for proxy in proxies {
+                guard let action = proxy.action else { preconditionFailure("Missing menu action") }
+                precondition(finder.responds(to: action))
+                _ = finder.perform(action, with: proxy)
+            }
+            // Already accepted callbacks must retain their snapshots through this replacement.
+            let secondMenu = finder.makeMenu(for: .container(root), store: store)
+            let firstTags = Set(proxies.map(\.tag))
+            precondition(secondMenu.items.allSatisfy { !firstTags.contains($0.tag) })
+            for proxy in proxies {
+                guard let action = proxy.action else { preconditionFailure("Missing menu action") }
+                _ = finder.perform(action, with: proxy)
+            }
+            let invalid = NSMenuItem()
+            invalid.representedObject = files
+            _ = finder.perform(NSSelectorFromString("performAction:"), with: invalid)
+            _ = finder.perform(NSSelectorFromString("copyPath:"), with: invalid)
+            // A current container action must still resolve after rejecting stale and forged senders.
+            guard let item = secondMenu.items.first(where: { $0.action == NSSelectorFromString("copyPath:") }) else {
+                preconditionFailure("Missing Copy Path action")
+            }
+            let proxy = NSMenuItem(title: item.title, action: item.action, keyEquivalent: "")
+            proxy.tag = item.tag
+            _ = finder.perform(NSSelectorFromString("copyPath:"), with: proxy)
         }.value
-        // A missing dispatch must fail the check rather than leave it waiting forever.
         let deadline = ContinuousClock.now + .seconds(2)
-        while openCount == 0 || copyCount == 0, ContinuousClock.now < deadline {
+        while receivedRequests.count < 3 || copiedFiles.count < 2, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
-        precondition(openCount == 1 && copyCount == 1, "Valid Finder requests were not dispatched")
+        precondition(
+            receivedRequests.count == 3 && copiedFiles == [files, files], "Proxy callbacks were lost or repeated")
+        let requests = try receivedRequests.map(FinderActionRequest.init(url:))
+        precondition(Set(requests.map(\.action)) == [.airDrop, .terminal, .move])
+        for request in requests {
+            precondition(request.files == files)
+            if request.action == .move {
+                precondition(request.clipboardChangeCount == clipboardChangeCount)
+                let authentic = try request.authenticates(using: key)
+                precondition(authentic)
+            }
+        }
     }
+    @MainActor private static func verifyConcurrentMenuPublication() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer {
+            do { try FileManager.default.removeItem(at: root) } catch { preconditionFailure("\(error)") }
+        }
+        let folders = ["A", "B", "C"].map { root.appendingPathComponent($0) }
+        for folder in folders {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+        let store = FinderConfigurationStore(directory: root.appendingPathComponent("configuration"))
+        try store.save(
+            FinderConfiguration(
+                airDropEnabled: true, terminalEnabled: true, copyPathEnabled: true, moveEnabled: true))
+        try store.prepareMoveKey()
+        var requests: [URL] = []
+        var copies: [[URL]] = []
+        let finder = BuckleFinderSync(
+            observeDirectories: { _ in }, openRequest: { request, _ in requests.append(request) },
+            copyFiles: { files, _ in copies.append(files) })
+        let copySelector = NSSelectorFromString("copyPath:")
+        let first = finder.makeMenu(for: .items([folders[0]]), store: store)
+        guard let firstItem = first.items.first(where: { $0.action == copySelector }) else {
+            preconditionFailure("Missing first menu Copy Path")
+        }
+        let firstProxy = NSMenuItem(title: "A", action: copySelector, keyEquivalent: "")
+        firstProxy.tag = firstItem.tag
+        let entered = DispatchSemaphore(value: 0)
+        let resume = DispatchSemaphore(value: 0)
+        let worker = ConcurrentMenuBuild(
+            finder: finder, folder: folders[1], store: store, entered: entered, resume: resume)
+        let finished = worker.finished
+        // Use Foundation's Objective-C thread entry, matching Finder's callback boundary without unsafe casts.
+        let thread = Thread(target: worker, selector: #selector(ConcurrentMenuBuild.run), object: nil)
+        thread.start()
+        // Semaphore waits stay off MainActor, where accepted callbacks must be delivered.
+        await Task.detached {
+            precondition(entered.wait(timeout: .now() + 5) == .success, "Concurrent menu did not begin loading")
+        }.value
+        _ = finder.perform(copySelector, with: firstProxy)
+        let third = finder.makeMenu(for: .items([folders[2]]), store: store)
+        guard let thirdItem = third.items.first(where: { $0.action == copySelector }) else {
+            preconditionFailure("Missing third menu Copy Path")
+        }
+        let thirdProxy = NSMenuItem(title: "C", action: copySelector, keyEquivalent: "")
+        thirdProxy.tag = thirdItem.tag
+        _ = finder.perform(copySelector, with: thirdProxy)
+        resume.signal()
+        await Task.detached {
+            precondition(finished.wait(timeout: .now() + 5) == .success, "Concurrent menu did not complete")
+        }.value
+        let completed = worker.items.withLock { $0 }
+        precondition(completed.count == 4)
+        // B completes last: all of B becomes active together, while both previous menus expire.
+        _ = finder.perform(copySelector, with: firstProxy)
+        _ = finder.perform(copySelector, with: thirdProxy)
+        let previousTags = Set(first.items.map(\.tag) + third.items.map(\.tag))
+        for (tag, actionName) in completed {
+            precondition(!previousTags.contains(tag))
+            let action = NSSelectorFromString(actionName)
+            let proxy = NSMenuItem(title: "B", action: action, keyEquivalent: "")
+            proxy.tag = tag
+            _ = finder.perform(action, with: proxy)
+        }
+        let deadline = ContinuousClock.now + .seconds(2)
+        while requests.count < 3 || copies.count < 3, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(copies.count == 3, "Concurrent menu publication lost a valid click or accepted an expired tag")
+        precondition(Set(copies.map { $0[0] }) == Set(folders), "Concurrent callback copied the wrong folder")
+        let decoded = try requests.map(FinderActionRequest.init(url:))
+        precondition(decoded.count == 3 && decoded.allSatisfy { $0.files == [folders[1]] })
+        precondition(Set(decoded.map(\.action)) == [.airDrop, .terminal, .move])
+    }
+
     private static func verifySharedLanguage() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".bundle")
         defer {
@@ -92,4 +206,42 @@ enum FinderPathCopyCheck {
         precondition(localized("finder.terminal.title", language: "en", bundle: bundle) == "Open in Terminal")
     }
 
+}
+
+// Foundation's target/selector thread API models the Objective-C callback that Swift Tasks cannot send.
+private final class ConcurrentMenuBuild: NSObject {
+    let finder: BuckleFinderSync
+    let folder: URL
+    let store: FinderConfigurationStore
+    let entered: DispatchSemaphore
+    let resume: DispatchSemaphore
+    let finished = DispatchSemaphore(value: 0)
+    let items = OSAllocatedUnfairLock(initialState: [(Int, String)]())
+
+    init(
+        finder: BuckleFinderSync, folder: URL, store: FinderConfigurationStore,
+        entered: DispatchSemaphore, resume: DispatchSemaphore
+    ) {
+        self.finder = finder
+        self.folder = folder
+        self.store = store
+        self.entered = entered
+        self.resume = resume
+    }
+
+    @objc func run() {
+        let menu = finder.makeMenu(
+            for: .items([folder]), store: store,
+            loadConfiguration: { [entered, resume] store in
+                entered.signal()
+                precondition(resume.wait(timeout: .now() + 5) == .success, "Menu configuration was not resumed")
+                return try store.load()
+            })
+        let snapshots = menu.items.map { item -> (Int, String) in
+            guard let action = item.action else { preconditionFailure("Missing concurrent menu action") }
+            return (item.tag, NSStringFromSelector(action))
+        }
+        items.withLock { $0 = snapshots }
+        finished.signal()
+    }
 }

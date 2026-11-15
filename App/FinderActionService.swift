@@ -61,7 +61,7 @@ final class FinderActionService {
         defer { lifecycle.end(.finderAction) }
         switch request.action {
         case .airDrop:
-            try airDrop.present(request.files)
+            try await airDrop.present(request.files)
         case .terminal:
             guard let directory = try FinderMenuContext.items(request.files).directory() else {
                 throw CocoaError(

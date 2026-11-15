@@ -1,9 +1,10 @@
 import AppKit
+import Darwin
 import OSLog
 
 @MainActor
 protocol AirDropPresenting {
-    func present(_ urls: [URL]) throws
+    func present(_ urls: [URL]) async throws
 }
 
 @MainActor
@@ -30,13 +31,21 @@ final class AirDropService: AirDropPresenting {
         self.reportError = reportError
     }
 
-    func present(_ urls: [URL]) throws {
+    func present(_ urls: [URL]) async throws {
         guard session == nil else {
             throw NSError(
                 domain: "Buckle.AirDrop", code: 2,
                 userInfo: [NSLocalizedDescriptionKey: localized("airdrop.busy")])
         }
-        guard let service = makeService(), service.canPerform(withItems: urls) else {
+        guard let service = makeService() else {
+            throw NSError(
+                domain: "Buckle.AirDrop", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: localized("airdrop.unavailable")])
+        }
+        // FinderActionService serializes requests while file access is being prepared.
+        try await Task.detached { try Self.requestFileAccess(urls) }.value
+        try Task.checkCancellation()
+        guard service.canPerform(withItems: urls) else {
             throw NSError(
                 domain: "Buckle.AirDrop", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: localized("airdrop.unavailable")])
@@ -53,6 +62,24 @@ final class AirDropService: AirDropPresenting {
         // Returning completes the shortcut request, not the file transfer.
         logger.info("AirDrop perform returned")
     }
+    private nonisolated static func requestFileAccess(_ urls: [URL]) throws {
+        // Capability checks only preflight protected folders; open the user-selected items first
+        // so macOS can request file access instead of reporting AirDrop as unavailable.
+        for url in urls {
+            try url.withUnsafeFileSystemRepresentation { path in
+                guard let path else { throw CocoaError(.fileReadInvalidFileName) }
+                // O_NONBLOCK also prevents a selected FIFO from blocking the UI.
+                let descriptor = Darwin.open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+                guard descriptor >= 0 else {
+                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSURLErrorKey: url])
+                }
+                guard Darwin.close(descriptor) == 0 else {
+                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSURLErrorKey: url])
+                }
+            }
+        }
+    }
+
 }
 
 @MainActor

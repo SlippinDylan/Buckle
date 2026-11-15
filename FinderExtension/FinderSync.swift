@@ -1,6 +1,7 @@
 import AppKit
 import FinderSync
 import OSLog
+import os.lock
 
 @MainActor
 final class BuckleFinderSync: FIFinderSync {
@@ -8,6 +9,18 @@ final class BuckleFinderSync: FIFinderSync {
 
     private let openRequest: @MainActor @Sendable (URL, Logger) -> Void
     private let copyFiles: @MainActor @Sendable ([URL], Logger) -> Void
+
+    private enum MenuAction: Sendable {
+        case open(URL)
+        case copy([URL])
+    }
+
+    private struct MenuActions {
+        var nextTag = 1
+        var snapshots: [Int: MenuAction] = [:]
+    }
+
+    private nonisolated let menuActions = OSAllocatedUnfairLock(initialState: MenuActions())
 
     override convenience init() {
         self.init(observeDirectories: { FIFinderSyncController.default().directoryURLs = $0 })
@@ -48,17 +61,37 @@ final class BuckleFinderSync: FIFinderSync {
             context = .container(directory)
         default: return nil
         }
+        do {
+            return makeMenu(for: context, store: try FinderConfigurationStore.standard())
+        } catch {
+            logger.error("Could not locate Finder configuration: \(error.localizedDescription, privacy: .private)")
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+            addUnavailableItem(to: menu, language: nil)
+            publish([:])
+            return menu
+        }
+    }
+
+    nonisolated func makeMenu(
+        for context: FinderMenuContext, store: FinderConfigurationStore,
+        loadConfiguration: @Sendable (FinderConfigurationStore) throws -> FinderConfiguration = { try $0.load() }
+    ) -> NSMenu {
+        // Build privately: another Finder request may finish while this one is reading configuration.
+        var actions: [Int: MenuAction] = [:]
         let menu = NSMenu()
         menu.autoenablesItems = false
         var language: String?
         do {
             // Snapshot the context with each item; the action must not follow later selection changes.
-            let configuration = try FinderConfigurationStore.standard().load()
+            let configuration = try loadConfiguration(store)
             language = configuration.language
             if case .items = context, configuration.airDropEnabled,
                 let service = NSSharingService(named: .sendViaAirDrop)
             {
-                try add(.airDrop, files: context.files, title: service.title, image: service.image, to: menu)
+                try add(
+                    .airDrop, files: context.files, title: service.title, image: service.image, to: menu,
+                    actions: &actions)
             }
             let directory: URL?
             if configuration.terminalEnabled || configuration.moveEnabled {
@@ -77,14 +110,14 @@ final class BuckleFinderSync: FIFinderSync {
             if configuration.terminalEnabled, let directory {
                 try add(
                     .terminal, files: [directory], title: localized("finder.terminal.title", language: language),
-                    image: nil, to: menu)
+                    image: nil, to: menu, actions: &actions)
             }
             if configuration.copyPathEnabled {
                 let item = NSMenuItem(
                     title: localized("finder.copyPath.title", language: language), action: #selector(copyPath(_:)),
                     keyEquivalent: "")
                 item.target = self
-                item.representedObject = context.files
+                item.tag = register(.copy(context.files), in: &actions)
                 menu.addItem(item)
             }
             if configuration.moveEnabled, let directory {
@@ -94,35 +127,70 @@ final class BuckleFinderSync: FIFinderSync {
                 item.target = self
                 item.isEnabled = NSPasteboard.general.canReadObject(
                     forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
-                item.representedObject = try FinderActionRequest(
+                let request = try FinderActionRequest(
                     action: .move, files: [directory], clipboardChangeCount: NSPasteboard.general.changeCount
-                ).signed(using: FinderConfigurationStore.standard().loadMoveKey()).url()
+                ).signed(using: store.loadMoveKey()).url()
+                item.tag = register(.open(request), in: &actions)
                 menu.addItem(item)
             }
         } catch {
             logger.error("Could not create Finder menu: \(error.localizedDescription, privacy: .private)")
-            let item = NSMenuItem(
-                title: localized("finder.menu.unavailable", language: language), action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
+            addUnavailableItem(to: menu, language: language)
         }
+        publish(actions)
         return menu
     }
 
-    private nonisolated func add(_ action: FinderAction, files: [URL], title: String, image: NSImage?, to menu: NSMenu)
-        throws
-    {
-        let item = NSMenuItem(title: title, action: #selector(performAction(_:)), keyEquivalent: "")
-        item.target = self
-        item.image = image
-        item.representedObject = try FinderActionRequest(action: action, files: files).url()
+    private nonisolated func addUnavailableItem(to menu: NSMenu, language: String?) {
+        let item = NSMenuItem(
+            title: localized("finder.menu.unavailable", language: language), action: nil, keyEquivalent: "")
+        item.isEnabled = false
         menu.addItem(item)
     }
 
+    private nonisolated func add(
+        _ action: FinderAction, files: [URL], title: String, image: NSImage?, to menu: NSMenu,
+        actions: inout [Int: MenuAction]
+    ) throws {
+        let item = NSMenuItem(title: title, action: #selector(performAction(_:)), keyEquivalent: "")
+        item.target = self
+        item.image = image
+        item.tag = register(.open(try FinderActionRequest(action: action, files: files).url()), in: &actions)
+        menu.addItem(item)
+    }
+
+    private nonisolated func register(_ action: MenuAction, in snapshots: inout [Int: MenuAction]) -> Int {
+        let tag = menuActions.withLock { state in
+            let tag = state.nextTag
+            state.nextTag += 1
+            return tag
+        }
+        snapshots[tag] = action
+        return tag
+    }
+
+    private nonisolated func publish(_ snapshots: [Int: MenuAction]) {
+        // Only a complete menu generation becomes visible to concurrent Finder callbacks.
+        menuActions.withLock { $0.snapshots = snapshots }
+    }
+
+    private nonisolated func dispatchAction(_ sender: NSMenuItem) {
+        // Capture under the lock before the actor hop; rebuilding a menu must not erase an accepted click.
+        let tag = sender.tag
+        guard let action = menuActions.withLock({ $0.snapshots[tag] }) else {
+            logger.error("Rejected unknown or expired Finder menu action tag: \(tag, privacy: .public)")
+            return
+        }
+        Task { @MainActor [openRequest, copyFiles, logger] in
+            switch action {
+            case .open(let request): openRequest(request, logger)
+            case .copy(let files): copyFiles(files, logger)
+            }
+        }
+    }
+
     @objc private nonisolated func performAction(_ sender: NSMenuItem) {
-        guard let request = sender.representedObject as? URL else { return }
-        // Finder invokes menu actions on its XPC queue; only transfer the value snapshot to MainActor.
-        Task { @MainActor [openRequest, logger] in openRequest(request, logger) }
+        dispatchAction(sender)
     }
 
     private static func openHost(_ request: URL, logger: Logger) {
@@ -154,8 +222,7 @@ final class BuckleFinderSync: FIFinderSync {
     }
 
     @objc private nonisolated func copyPath(_ sender: NSMenuItem) {
-        guard let files = sender.representedObject as? [URL] else { return }
-        Task { @MainActor [copyFiles, logger] in copyFiles(files, logger) }
+        dispatchAction(sender)
     }
 
     private static func copyPaths(_ files: [URL], logger: Logger) {
