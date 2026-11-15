@@ -45,7 +45,7 @@ CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main
 
 更新源工作流从已发布标签中的 CHANGELOG 与 manifest 提取同一段文字，不读取可手动修改的 GitHub Release 正文。同名 `.md` 文件交给锁定的 Sparkle 2.10.0 `generate_appcast --embed-release-notes` 处理 Markdown 并嵌入签名清单，不自行维护第二份 HTML。此规则从 0.1.2 开始；旧标签没有 CHANGELOG 时会明确拒绝重建其更新说明，不改写已有发布或线上清单。依据：[Sparkle 2.10.0 更新说明实现](https://github.com/sparkle-project/Sparkle/blob/2.10.0/generate_appcast/FeedXML.swift)。
 
-通知工作流读取默认分支上的脚本，不执行 fork PR 的代码或下载其构建产物。权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。通知失败会让相应工作流失败，不伪装为成功。目前没有自动重试，需通过 GitHub 重新运行失败任务。`Publish Update Feed` 的开始及完成结果也发送通知；GitHub Release 发布消息只说明 Release 已发布，不代表更新清单已同步。
+通知工作流读取默认分支上的脚本，不执行 fork PR 的代码或下载其构建产物。权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。推送通知排除 `dependabot/**` 分支，避免机器人推送无法读取 Actions Secret 而失败；依赖更新仍通过 PR 和 CI 开始／完成事件通知，普通分支推送、Issue、评论和 Release 通知保留。通知失败会让相应工作流失败，不伪装为成功。目前没有自动重试，需通过 GitHub 重新运行失败任务。`Publish Update Feed` 的开始及完成结果也发送通知；GitHub Release 发布消息只说明 Release 已发布，不代表更新清单已同步。
 
 ### 浏览器启动参数
 

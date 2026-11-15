@@ -62,3 +62,15 @@ test('workflow trigger includes every workflow handled by the notification scrip
   const names = source.match(/workflows: \[([^\]]+)\]/)[1].split(',').map(name => name.trim());
   assert.deepEqual(names, ['CI', 'Publish Update Feed']);
 });
+
+test('Dependabot push notifications are excluded while PR and CI notifications remain enabled', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../workflows/discord-notify.yml', import.meta.url), 'utf8');
+  const push = source.match(/^  push:\n((?:    .+\n)+)/m)?.[1];
+  assert.ok(push, 'Push notification trigger must remain enabled.');
+  assert.match(push, /branches-ignore: \['dependabot\/\*\*'\]/);
+  assert.doesNotMatch(push, /^    branches:/m);
+  assert.match(source, /^  pull_request_target:/m);
+  assert.match(source, /^  workflow_run:/m);
+  assert.match(source, /^  release:/m);
+});
