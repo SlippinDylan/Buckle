@@ -109,6 +109,7 @@ def main():
     assert info["LSUIElement"] is True
     assert "NSServices" not in info
     assert info["CFBundleURLTypes"][0]["CFBundleURLSchemes"] == ["buckle"]
+    assert info["SUEnableAutomaticChecks"] is False
     assert info["SURequireSignedFeed"] is True
     assert info["SUVerifyUpdateBeforeExtraction"] is True
     assert len(base64.b64decode(info["SUPublicEDKey"], validate=True)) == 32

@@ -34,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var systemMemoryPanel = SystemMemoryPanel(lifecycle: lifecycle)
     private let updates = ApplicationUpdateController()
     private var ownsApplicationState = false
+    private let onboardingState = OnboardingState()
+    private var onboardingWindow: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let signposter = OSSignposter(subsystem: "studio.slippindylan.Buckle", category: "Lifecycle")
@@ -48,6 +50,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         ownsApplicationState = true
+        let launchEvent = NSAppleEventManager.shared().currentAppleEvent
+        let launchedAsLoginItem =
+            launchEvent?.eventID == kAEOpenApplication
+            && launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        onboardingState.prepareLaunch(
+            isDefaultLaunch: notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool == true,
+            isLoginItem: launchedAsLoginItem)
+        settings.openOnboarding = { [weak self] in self?.showOnboarding() }
+        settings.onChange = { [weak self] in self?.onboardingWindow?.refresh() }
         updates.start()
         lifecycle.onReadyToTerminate = { [weak self] in
             self?.prepareToTerminate()
@@ -76,12 +87,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.activate()
                 NSAlert(error: error).runModal()
             }
+            if onboardingState.shouldPresentAutomatically, !lifecycle.terminationRequested { showOnboarding() }
         }
         Task { await finderExtension.refresh() }
         Task { await systemMemoryPanel.refreshPermissions() }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        onboardingState.suppressAutomaticPresentation()
+        onboardingWindow?.suspend()
         Task { @MainActor in
             guard !lifecycle.terminationRequested else { return }
             do {
@@ -108,6 +122,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await finderExtension.refresh() }
         Task { await systemMemoryPanel.refreshPermissions() }
         settings.refresh()
+        if onboardingWindow?.window?.isVisible == true, onboardingWindow?.step == .permissions {
+            settings.refreshOnboardingPermissions()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -121,6 +138,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard ownsApplicationState else { return .terminateNow }
+        onboardingWindow?.suspendForTermination()
+        permissionGuidance.close()
         // Sparkle's quit event uses this same gate; no separate update-only busy state is needed.
         if lifecycle.requestTermination() { prepareToTerminate() }
         return .terminateLater
@@ -149,7 +168,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             NSApp.reply(toApplicationShouldTerminate: allowed)
+            if !allowed { onboardingWindow?.resumeAfterCancelledTermination() }
         }
+    }
+
+    private func showOnboarding() {
+        guard !lifecycle.terminationRequested, !lifecycle.isActive(.finderAction), !lifecycle.isActive(.mouseReset)
+        else { return }
+        if onboardingWindow == nil {
+            onboardingWindow = OnboardingWindowController(
+                lifecycle: lifecycle,
+                rows: { [settings] in settings.onboardingRows(for: $0) },
+                didChangeStep: { [weak self] step in
+                    guard let self, step == .permissions, !self.lifecycle.terminationRequested else { return }
+                    self.settings.refreshOnboardingPermissions()
+                },
+                didDismiss: { [weak self] in
+                    self?.onboardingState.dismiss()
+                    self?.permissionGuidance.close()
+                },
+                didComplete: { [weak self] in
+                    guard let self, !self.lifecycle.terminationRequested else { return }
+                    self.statusMenu.statusItem?.button?.performClick(nil)
+                })
+        }
+        settings.refresh()
+        onboardingWindow?.present()
     }
 
     private func showSettings(category: ApplicationSettingsViewController.Category? = nil) {

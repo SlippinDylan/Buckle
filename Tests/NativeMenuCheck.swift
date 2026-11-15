@@ -22,6 +22,8 @@ enum NativeMenuCheck {
         try verifyUpdateStartup(in: directory.appendingPathComponent("update-startup.bundle"))
         try await verifyFinderSaveFailure(in: directory.appendingPathComponent("read-only"))
         try await verifyMoveKeyIsolation(in: directory.appendingPathComponent("damaged-move-key"))
+        try await verifyOnboardingFailureRouting(in: directory.appendingPathComponent("onboarding-errors"))
+        verifyOnboardingTerminationRecovery()
         await verifySettingsRows(finder: FinderExtensionController(configurationStore: { store }))
         var openedCategories: [ApplicationSettingsViewController.Category?] = []
         var memoryRequests = 0
@@ -234,6 +236,95 @@ enum NativeMenuCheck {
         _ = try store.loadMoveKey()
     }
 
+    @MainActor private static func verifyOnboardingFailureRouting(in directory: URL) async throws {
+        let store = FinderConfigurationStore(directory: directory)
+        try store.save(.initial)
+        let finder = FinderExtensionController(configurationStore: { store })
+        await finder.refresh()
+        let lifecycle = ApplicationLifecycle()
+        let panel = SystemMemoryPanel(operations: MenuCheckPanelOperations(), lifecycle: lifecycle)
+        var errorWindows: [NSWindow?] = []
+        let settings = ApplicationSettingsViewController(
+            memoryPanel: panel, finder: finder, updates: ApplicationUpdateController(), lifecycle: lifecycle,
+            presentError: { _, window in errorWindows.append(window) })
+        let settingsHost = NSWindow(contentViewController: settings)
+        let guide = OnboardingWindowController(
+            lifecycle: lifecycle, rows: { settings.onboardingRows(for: $0) },
+            didChangeStep: { _ in }, didDismiss: {}, didComplete: {})
+        guide.advance()
+        guide.advance()
+        guard let guideContent = guide.window?.contentView,
+            let control = descendants(of: guideContent).compactMap({ $0 as? NSSwitch }).first
+        else { preconditionFailure("The guide must expose the saved Finder configuration") }
+        precondition(control.window === guide.window && settings.view.window === settingsHost)
+        // Rendering can detach the sender before an error is presented.
+        settings.onChange = { control.removeFromSuperview() }
+        try Data("invalid json".utf8).write(to: directory.appendingPathComponent("menus.json"))
+        control.state = .on
+        control.sendAction(control.action, to: control.target)
+        precondition(control.window == nil)
+        precondition(
+            errorWindows.count == 1 && errorWindows[0] === guide.window,
+            "Save failures must remain attached to their originating guide, even after refresh")
+        await finder.refresh()
+        let invalidViews = settings.onboardingRows(for: .finder).flatMap { [$0] + descendants(of: $0) }
+        precondition(
+            invalidViews.compactMap { $0 as? NSButton }.contains {
+                $0.action == NSSelectorFromString("restoreFinder:")
+            }, "A damaged configuration must expose the existing restore action on the feature page")
+        precondition(
+            invalidViews.compactMap { ($0 as? NSTextField)?.stringValue }.contains {
+                $0.contains(localized("finder.configuration.invalid"))
+            }, "An unavailable configuration must explain why feature switches cannot be shown")
+        await finder.restoreConfiguration()
+        let restoredViews = settings.onboardingRows(for: .finder).flatMap { [$0] + descendants(of: $0) }
+        precondition(restoredViews.compactMap { $0 as? NSSwitch }.count == 4)
+        let unreadableFinder = FinderExtensionController(configurationStore: { throw CocoaError(.fileReadNoPermission) }
+        )
+        await unreadableFinder.refresh()
+        let unreadableSettings = ApplicationSettingsViewController(
+            memoryPanel: panel, finder: unreadableFinder, updates: ApplicationUpdateController(), lifecycle: lifecycle)
+        let failedViews = unreadableSettings.onboardingRows(for: .finder).flatMap { [$0] + descendants(of: $0) }
+        precondition(
+            failedViews.compactMap { $0 as? NSButton }.contains {
+                $0.action == NSSelectorFromString("checkFinder")
+            }, "Read failures must expose the existing retry action")
+    }
+
+    @MainActor private static func verifyOnboardingTerminationRecovery() {
+        let lifecycle = ApplicationLifecycle()
+        var dismissals = 0
+        let guide = OnboardingWindowController(
+            lifecycle: lifecycle, rows: { _ in [] },
+            didChangeStep: { _ in }, didDismiss: { dismissals += 1 }, didComplete: {})
+        let window = MenuCheckOnboardingWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
+            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.contentView = guide.window?.contentView
+        guide.window = window
+        window.delegate = guide
+        guide.advance()
+        guide.advance()
+        window.makeKeyAndOrderFront(nil)
+        guide.suspendForTermination()
+        precondition(!window.isVisible && dismissals == 0)
+        precondition(lifecycle.requestTermination())
+        guide.suspendForTermination()
+        guide.resumeAfterCancelledTermination()
+        precondition(!window.isVisible, "A pending quit must never reopen the guide")
+        lifecycle.cancelTermination()
+        guide.resumeAfterCancelledTermination()
+        precondition(
+            window.isVisible && guide.step == .finder && dismissals == 0,
+            "Canceling quit must restore the existing window and step without dismissing setup")
+        window.orderOut(nil)
+        guide.suspendForTermination()
+        precondition(lifecycle.requestTermination())
+        lifecycle.cancelTermination()
+        guide.resumeAfterCancelledTermination()
+        precondition(!window.isVisible, "Canceling quit must not open a guide that was already hidden")
+    }
+
     @MainActor private static func verifySettingsRows(
         finder: FinderExtensionController
     ) async {
@@ -280,6 +371,117 @@ enum NativeMenuCheck {
             precondition(
                 abs(control.frame.maxX - row.bounds.maxX) < 0.5, "Settings switches must align to the trailing edge")
         }
+        var reopenedGuides = 0
+        settings.openOnboarding = { reopenedGuides += 1 }
+        guard let reopen = generalButtons.first(where: { $0.title == localized("onboarding.reopen") }) else {
+            preconditionFailure("General settings must expose the setup guide")
+        }
+        reopen.performClick(nil)
+        precondition(reopenedGuides == 1)
+        await finder.refresh()
+        let finderRows = settings.onboardingRows(for: .finder)
+        let finderViews = finderRows.flatMap { [$0] + descendants(of: $0) }
+        precondition(finderViews.compactMap { $0 as? NSSwitch }.count == 4)
+        for control in finderViews.compactMap({ $0 as? NSSwitch }) {
+            guard let identifier = control.identifier, let action = FinderAction(rawValue: identifier.rawValue) else {
+                preconditionFailure("Each guide switch must identify its existing Finder action")
+            }
+            let wasEnabled = finder.configuration?.isEnabled(action) == true
+            control.state = wasEnabled ? .off : .on
+            control.sendAction(control.action, to: control.target)
+            await finder.refresh()
+            precondition(
+                finder.configuration?.isEnabled(action) == !wasEnabled,
+                "Guide switches must persist through the existing Finder configuration service")
+            control.state = wasEnabled ? .on : .off
+            control.sendAction(control.action, to: control.target)
+        }
+
+        precondition(
+            !finderViews.compactMap { ($0 as? NSTextField)?.stringValue }.contains(
+                localized("permissions.finderAutomation.title")),
+            "Feature switches must remain separate from permission controls")
+        let permissionViews = settings.onboardingRows(for: .permissions).flatMap { [$0] + descendants(of: $0) }
+        let permissionTitles = permissionViews.compactMap { ($0 as? NSTextField)?.stringValue }
+        precondition(permissionTitles.contains(localized("permissions.finderAutomation.title")))
+        precondition(
+            permissionTitles.contains(localized("permissions.systemEvents.title")),
+            "All permissions must be available before selecting features")
+        precondition(
+            permissionViews.compactMap { $0 as? NSSwitch }.isEmpty,
+            "Permissions must be separate from feature switches")
+        settings.selectCategory(.permissions)
+        let settingsPermissionButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
+        for control in permissionViews.compactMap({ $0 as? NSButton }) {
+            precondition(
+                control.target === settings,
+                "Guide permissions must use the existing settings controller")
+            precondition(
+                settingsPermissionButtons.contains { $0.action == control.action },
+                "Guide permissions must use the same authorization and extension actions as Settings")
+        }
+        let preferenceViews = settings.onboardingRows(for: .preferences).flatMap { [$0] + descendants(of: $0) }
+        precondition(preferenceViews.compactMap { $0 as? NSSwitch }.count == 2)
+        for control in preferenceViews.compactMap({ $0 as? NSSwitch }) {
+            precondition(
+                control.target === settings && switches.contains { $0.action == control.action },
+                "Startup and updates must reuse the Settings actions without a separate preference store")
+        }
+
+        precondition(
+            preferenceViews.compactMap { ($0 as? NSTextField)?.stringValue }.contains(
+                localized("onboarding.updates.disabled")))
+        let guideLifecycle = ApplicationLifecycle()
+        var steps: [OnboardingStep] = []
+        var completedGuides = 0
+        var guideClosed = false
+        let guide = OnboardingWindowController(
+            lifecycle: guideLifecycle, rows: { settings.onboardingRows(for: $0) },
+            didChangeStep: { steps.append($0) }, didDismiss: { guideClosed = true },
+            didComplete: {
+                precondition(guideClosed, "The guide must close before the menu-opening callback runs")
+                completedGuides += 1
+            })
+        precondition(guide.step == .welcome)
+        guide.advance()
+        precondition(guide.step == .permissions && steps == [.permissions])
+        guard let guideContent = guide.window?.contentView else {
+            preconditionFailure("The guide must have a content view")
+        }
+        guideContent.layoutSubtreeIfNeeded()
+        let navigation = descendants(of: guideContent).compactMap { $0 as? NSButton }.filter {
+            $0.identifier?.rawValue.hasPrefix("onboarding.") == true
+        }
+        precondition(navigation.count == 2, "Only back and forward belong in guide navigation")
+        guard let back = navigation.first(where: { $0.identifier?.rawValue == "onboarding.back" }),
+            let next = navigation.first(where: { $0.identifier?.rawValue == "onboarding.next" })
+        else {
+            preconditionFailure("The guide needs both navigation buttons")
+        }
+        precondition(back.frame.maxX < next.frame.minX, "Back must be left of forward")
+        precondition(
+            next.keyEquivalent == "\r" && back.keyEquivalent.isEmpty,
+            "Continue must be the primary action")
+        precondition(abs(next.frame.width - 52) < 0.5 && abs(next.frame.height - 52) < 0.5)
+        precondition(
+            abs(back.frame.width - 40) < 0.5 && abs(back.frame.height - 40) < 0.5,
+            "Both navigation buttons must be circular, with Continue more prominent")
+        precondition(next.frame.minX - back.frame.maxX < 30, "Navigation controls must stay grouped")
+        back.performClick(nil)
+        precondition(guide.step == .welcome)
+        guide.advance()
+        guide.advance()
+        guide.advance()
+        precondition(
+            guide.step == .preferences && steps == [.permissions, .welcome, .permissions, .finder, .preferences])
+        guide.advance()
+        precondition(guide.step == .complete && completedGuides == 0)
+        precondition(guide.window?.attachedSheet == nil, "Completion belongs inside the guide")
+        guide.advance()
+        precondition(completedGuides == 1, "Start Using Buckle must open the menu once")
+        precondition(guideLifecycle.requestTermination())
+        guide.advance()
+        precondition(completedGuides == 1, "Quitting must prevent opening the menu")
         settings.selectCategory(.mouseReset)
         guard let wait = descendants(of: settings.view).compactMap({ $0 as? NSStepper }).first else {
             preconditionFailure("Mouse reset settings must expose a service wait control")
@@ -316,7 +518,7 @@ enum NativeMenuCheck {
         precondition(grantedLabels.count == 2, "Granted permissions must use green status labels")
         precondition(grantedLabels.allSatisfy { !$0.stringValue.isEmpty })
         precondition(
-            permissionButtons.contains { $0.action == NSSelectorFromString("openFinderAutomation") },
+            permissionButtons.contains { $0.action == NSSelectorFromString("openFinderAutomation:") },
             "Denied Finder automation needs its own grant action even when System Events is authorized")
         finderAnswer.granted = true
         await finderAutomation.refresh()
@@ -416,4 +618,12 @@ private final class MenuCheckPanelOperations: SystemMemoryPanelOperations {
 private final class MenuCheckFinderPermission {
     var granted = false
     var requests: [Bool] = []
+}
+
+@MainActor private final class MenuCheckOnboardingWindow: NSWindow {
+    private var visibleForCheck = false
+    override var isVisible: Bool { visibleForCheck }
+    override func makeKeyAndOrderFront(_ sender: Any?) { visibleForCheck = true }
+    override func orderFront(_ sender: Any?) { visibleForCheck = true }
+    override func orderOut(_ sender: Any?) { visibleForCheck = false }
 }

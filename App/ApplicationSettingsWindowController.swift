@@ -61,11 +61,28 @@ final class ApplicationSettingsWindowController: NSWindowController, NSToolbarDe
         settingsViewController.requestPermission(requirement, from: view)
     }
 
+    var onChange: (() -> Void)? {
+        get { settingsViewController.onChange }
+        set { settingsViewController.onChange = newValue }
+    }
+
+    var openOnboarding: (() -> Void)? {
+        get { settingsViewController.openOnboarding }
+        set { settingsViewController.openOnboarding = newValue }
+    }
+
+    func onboardingRows(for step: OnboardingStep) -> [NSView] {
+        settingsViewController.loadViewIfNeeded()
+        return settingsViewController.onboardingRows(for: step)
+    }
+
+    func refreshOnboardingPermissions() {
+        settingsViewController.refreshPermissionStatus(forOnboarding: true)
+    }
+
     func refresh() {
-        if window?.isVisible == true {
-            settingsViewController.refresh()
-            settingsViewController.refreshPermissionStatus()
-        }
+        settingsViewController.refresh()
+        if window?.isVisible == true { settingsViewController.refreshPermissionStatus() }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

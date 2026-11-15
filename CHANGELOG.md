@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-15
+
+### Added
+- An optional first-run setup guide introduces the menu-bar app, Finder actions and their required access, launch at login, and automatic update checks, with an animated welcome, a separate permissions page before feature switches, grouped circular back and continue controls, an inline completion page with a celebration and an action to open the menu, and a reopen action in General settings.
+
+### Changed
+- Closing setup preserves saved choices and prevents the guide from reopening automatically after restarts or upgrades; existing users see it once while keeping their settings.
+- New installations leave automatic update checks off until selected in setup or Settings, without a separate Sparkle permission prompt; existing update preferences and manual checks are preserved.
+
+### Fixed
+- Setup errors stay attached to the window that initiated the action, including after controls refresh.
+- Finder configuration failures expose existing recovery or retry actions instead of an empty feature page.
+- Canceling quit restores a previously visible setup window at its current step.
+
 ## [0.2.3] - 2026-11-15
 
 ### Changed

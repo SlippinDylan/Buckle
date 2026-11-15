@@ -64,7 +64,7 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -I "$permission_support_bin" -I "$permission_support_bin/Modules" \
     -L "$permission_support_bin" -lBucklePermissionSupport \
     -Xlinker -rpath -Xlinker "$(pwd)/$sparkle_framework" -target "$(uname -m)-apple-macos15.0" \
-    App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift \
+    App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift App/OnboardingWindowController.swift \
     App/BrowserLauncher.swift App/FinderExtensionController.swift App/MouseResetController.swift App/MenuBarRestartController.swift \
     App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker build/Checks/native-menu-info.plist \

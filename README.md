@@ -22,6 +22,8 @@ Requires **macOS 15 or later**, on Apple Silicon or Intel. CI builds target Univ
 4. Use the menu-bar menu to run tools or enable Finder actions. All four Finder actions are off on first use; your selections are saved.
 5. Open **Settings → Permissions** to enable the Finder extension or grant requested access. Status refreshes automatically; green text and a checkmark indicate granted access or an enabled extension.
 
+The setup guide appears once on a normal launch if you have not dismissed it before, including for existing users; it preserves your current settings. It introduces the menu-bar app, lets you choose Finder actions, and offers the permissions those actions need, launch at login, and automatic update checks. Changes are saved immediately. All four Finder actions remain off until you choose them. You can continue without granting access, or close the window; the guide will not reopen automatically after restarting or upgrading. Open it again under **Settings → General → Show Setup Guide…**. For new users, skipping the update choice leaves automatic checks off; existing update preferences are preserved and manual checks remain available in builds that support updates. The final page celebrates completion; choose **Start Using Buckle** to open its menu. Permissions appear on a separate page before the feature switches.
+
 > [!IMPORTANT]
 > Builds use ad-hoc signing and are not notarized. A downloaded build may need approval in System Settings; system permissions may need to be granted again after an update.
 
