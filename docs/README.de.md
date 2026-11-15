@@ -25,6 +25,8 @@ Erfordert **macOS 15 oder neuer** auf Apple Silicon oder Intel. CI-Builds zielen
 > [!IMPORTANT]
 > Die Builds sind ad-hoc-signiert und nicht notarisiert. Heruntergeladene Builds benötigen möglicherweise eine Freigabe in den Systemeinstellungen; nach einem Update können erneute Berechtigungen nötig sein.
 
+Die Installation über Homebrew ist noch nicht verfügbar. Verwende die DMG, bis der Buckle-Cask im [gemeinsamen Tap](https://github.com/SlippinDylan/homebrew-tap) veröffentlicht wurde.
+
 ## Funktionen
 
 <table>
@@ -63,7 +65,7 @@ Die Screenshots zeigen die englische Oberfläche und können von deiner installi
 - **Browserprofile:** verwendet die vorhandenen Browserdaten und gespeicherten Anmeldungen, ohne ein separates Profil anzulegen. Die Profilauswahl folgt dem Verhalten des Browsers. Beende den Browser vor einem Sprachwechsel. Läuft er bereits, zeigt Buckle nur einen Hinweis. Beim Start auf Japanisch wird wie im ursprünglichen Skript die Zeitzone Tokio für den Browserprozess angefordert; andere Sprachen behalten die Systemzeitzone. macOS-Einstellungen und IP-Adresse werden nicht geändert. Sprache und regionale Formate einer Website werden nicht garantiert. Das Zeitzonenverhalten wurde nur mit Chrome Beta geprüft.
 - **Finder:** Die Erweiterung kopiert Pfade als Klartext, mehrere Pfade in getrennten Zeilen; andere Aktionen starten Buckle bei Bedarf. Kopiere zum Bewegen zuerst Dateien im Finder und klicke dann mit der rechten Maustaste auf den Zielordner oder dessen Hintergrund. Buckle öffnet diesen Ordner im Finder und löst dessen nativen Verschiebebefehl aus. Bedienungshilfen und Automation für Finder und System Events müssen erlaubt sein. Der Finder übernimmt Fortschritt, Namenskonflikte und Widerrufen; beachte seine Dialoge für das Ergebnis. Buckle wartet nicht auf das Ende der Übertragung. Die Menüposition bestimmt Finder. Eigene Finder-Menütexte folgen nach einem Neustart von Buckle der App-Sprache; der native AirDrop-Name folgt dem System. Die Berechtigungsseite zeigt den Automationszugriff auf Finder und System Events getrennt an. Bei eigenen Finder- oder globalen Menükurzbefehlen ist automatisches Bewegen deaktiviert, damit kein umbelegter Befehl ausgeführt wird. Verwende dann den Finder direkt.
 - **AirDrop:** öffnet die systemeigene Freigabeoberfläche, ohne auf das Ende der Übertragung zu warten. Es kann jeweils eine AirDrop-Sitzung geöffnet sein; andere Finder-Aktionen bleiben verfügbar. Buckle wartet beim Beenden nicht auf AirDrop. Lass Buckle während der Nutzung des Freigabefensters laufen.
-- **Updates:** Sparkle ist integriert. Manuelle Prüfungen findest du unter **Einstellungen → Info**, automatische unter **Allgemein**. Entwicklungs- und Pull-Request-Builds deaktivieren Updates; CI-Release-Builds auf main aktivieren sie. Online-Updates erfordern ein veröffentlichtes Installationspaket und einen signierten Feed.
+- **Updates:** Sparkle ist integriert. Manuelle Prüfungen findest du unter **Einstellungen → Info**, automatische unter **Allgemein**. Entwicklungs-, CI- und manuell angeforderte Testpakete deaktivieren Updates; manuell angeforderte offizielle Release-Builds aktivieren sie. Ein Push auf main erstellt oder veröffentlicht kein Paket mehr automatisch. Online-Updates erfordern ein veröffentlichtes Installationspaket und einen signierten Feed.
 
 ## Aus dem Quellcode bauen
 

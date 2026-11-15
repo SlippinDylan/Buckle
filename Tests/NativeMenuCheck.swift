@@ -125,7 +125,7 @@ enum NativeMenuCheck {
         try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
         let info: [String: Any] = [
             "CFBundleIdentifier": "studio.slippindylan.Buckle.UpdateStartupCheck",
-            "BuckleUpdaterEnabled": "YES",
+            "AppUpdaterEnabled": "YES",
             "SUFeedURL": "invalid-feed",
             "SUPublicEDKey": "invalid-key",
         ]

@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-node .github/scripts/sync-version.mjs --check
-node .github/scripts/release-notes.mjs --check
+python3 -B Scripts/check.py
 swift test
 swift build --product BucklePermissionSupport
 permission_support_bin=$(swift build --show-bin-path)
 bash Scripts/check-finder-sandbox.sh
 bash Scripts/resolve-dependencies.sh
+# These checks require the resolved official Sparkle tools, including on a clean CI runner.
+node --test .github/scripts/update-tools.test.mjs
 bash Scripts/check-sparkle-runtime.sh
 xcrun swiftc -typecheck -parse-as-library -swift-version 6 \
     -I "$permission_support_bin" -I "$permission_support_bin/Modules" \
@@ -70,8 +71,6 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -o build/Checks/native-menu
 build/Checks/native-menu
 xcrun swift-format lint --strict --recursive App FinderExtension Support Tests Package.swift
-python3 Scripts/check-localizations.py
-node --test .github/scripts/*.test.mjs
 for script in Scripts/*.sh; do bash -n "$script"; done
 plutil -lint App/Info.plist App/Buckle.entitlements FinderExtension/Info.plist FinderExtension/BuckleFinder.entitlements Buckle.xcodeproj/project.pbxproj
 git diff --check

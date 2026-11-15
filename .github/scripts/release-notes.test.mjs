@@ -15,6 +15,13 @@ test('extracts only the requested version and preserves Markdown for both releas
   assert.match(extractReleaseNotes(source, '1.1.0'), /Older feature/);
 });
 
+test('accepts breaking changes and rejects FIXME placeholders before either consumer receives notes', () => {
+  assert.match(extractReleaseNotes(source.replace('### Fixed', '### Breaking Changes'), '1.2.0'), /### Breaking Changes/);
+  for (const word of ['FIXME', 'fixme', 'TODO', 'TBD', 'PLACEHOLDER']) {
+    assert.throws(() => extractReleaseNotes(source.replace('Fixed a startup issue.', `${word}: finish notes.`), '1.2.0'), /placeholder/);
+  }
+});
+
 test('rejects missing, duplicate, empty, malformed or unfinished release metadata', () => {
   for (const invalid of [
     source.replace(current, ''),

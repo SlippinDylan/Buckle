@@ -1,12 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 distribution=false
+updater_key=AppUpdaterEnabled
 if [[ ${1:-} == --distribution ]]; then
     distribution=true
     shift
 fi
+if [[ ${1:-} == --legacy-updater-key ]]; then
+    updater_key=BuckleUpdaterEnabled
+    shift
+fi
 if [[ $# -ne 1 ]]; then
-    echo 'Usage: Scripts/verify-bundle.sh [--distribution] <Buckle.app>' >&2
+    echo 'Usage: Scripts/verify-bundle.sh [--distribution] [--legacy-updater-key] <Buckle.app>' >&2
     exit 64
 fi
 app_path="$1"
@@ -15,7 +20,7 @@ test -x "$app_path/Contents/MacOS/Buckle"
 test -x "$extension_path/Contents/MacOS/BuckleFinder"
 codesign --verify --deep --strict "$app_path"
 codesign --verify --strict "$extension_path"
-python3 - "$app_path" "$distribution" <<'PY'
+python3 - "$app_path" "$distribution" "$updater_key" <<'PY'
 import plistlib
 import re
 from pathlib import Path
@@ -75,8 +80,9 @@ for component in ('Autoupdate', 'Updater.app', 'XPCServices/Installer.xpc', 'XPC
     assert (framework / 'Versions/B' / component).exists(), f'Missing Sparkle component: {component}'
 assert host_info['SURequireSignedFeed'] is True
 assert host_info['SUVerifyUpdateBeforeExtraction'] is True
-assert host_info['BuckleUpdaterEnabled'] in ('YES', 'NO')
-if host_info['BuckleUpdaterEnabled'] == 'YES':
+flag = host_info[sys.argv[3]]
+assert type(flag) is bool or flag in ('YES', 'NO')
+if flag is True or flag == 'YES':
     assert host_info['SUFeedURL'] == 'https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml'
 result = subprocess.run(['codesign', '-d', '--entitlements', ':-', str(extension)], check=True, capture_output=True)
 entitlements = plistlib.loads(result.stdout)

@@ -6,6 +6,8 @@
 
 Sparkle 2.10.0 通过 Xcode SPM 依赖仅链接到主应用，锁文件纳入 Git。更新框架及其内部更新组件内嵌在主应用中；内部 Updater 使用 `LSUIElement`，不增加独立安装入口。更新器只在主应用完成单实例检查后创建，扩展进程不启动更新器。
 
+本项目采用的工程基线版本及项目例外记录在 [`Config/standards.json`](../Config/standards.json)，14 项接入与人工验收状态见[接入状态](setup-status.md)。开发产物的归属与清理范围以[清理规则](development-cleanup.md)为准；排除规则不构成删除授权。
+
 版本、构建号与安装包开关的唯一编辑入口是 `Config/Release/manifest.json`。`node .github/scripts/sync-version.mjs` 更新 `Config/Generated/Version.xcconfig`，两个构建配置共同包含它。不要在 Xcode Build Settings 再设置版本覆盖值。使用 `Scripts/build.sh` 时自动同步；CI 用 `--check` 检测遗漏。
 
 ## README 与截图
@@ -16,7 +18,7 @@ Sparkle 2.10.0 通过 Xcode SPM 依赖仅链接到主应用，锁文件纳入 Gi
 
 ## 检查与构建
 
-`bash Scripts/check.sh` 包含核心单元测试、Finder 配置与 URL 路由测试、真实沙盒配置读写权限检查、Release 签名下实际加载 Sparkle 的检查、更新配置与密钥匹配测试、官方 Sparkle 工具生成签名清单及拒绝篡改的检查、Swift 6 主应用和扩展源码类型检查、鼠标重置及部分退出失败回滚检查、系统内存窗口事件构造、权限拒绝和跨实例偏好恢复检查、格式、多语言、版本配置、通知脚本测试及 plist 检查。它通过 `Scripts/resolve-dependencies.sh` 解析锁定的 SPM 依赖，需要网络或已有缓存；不会启动应用界面或完整构建 Buckle。更新工具检查只生成临时测试归档，不使用用户私钥，不启动测试程序。
+`python3 -B Scripts/check.py` 执行工程基线、本地化、Python 与 Node 离线测试、Shell 语法及 diff 检查，不编译 App。`bash Scripts/check.sh` 另外包含核心单元测试、Finder 配置与 URL 路由测试、真实沙盒配置读写权限检查、Release 签名下实际加载 Sparkle 的检查、更新配置与密钥匹配测试、官方 Sparkle 工具生成签名清单及拒绝篡改的检查、Swift 6 主应用和扩展源码类型检查、鼠标重置及部分退出失败回滚检查、系统内存窗口事件构造、权限拒绝和跨实例偏好恢复检查、格式、多语言、版本配置、通知脚本测试及 plist 检查。它通过 `Scripts/resolve-dependencies.sh` 解析锁定的 SPM 依赖，需要网络或已有缓存；不会启动应用界面或完整构建 Buckle。更新工具检查只生成临时测试归档，不使用用户私钥，不启动测试程序。
 
 Swift 改动后执行：
 
@@ -35,17 +37,40 @@ bash Scripts/check.sh
   --platform macOS --rendition Default --width 1024 --height 1024 --scale 1
 ```
 
-CI 对 main 推送、PR 和手动触发执行检查及 Universal 2 构建。main 的检查全部通过且 manifest 的打包开关开启时，同一次构建继续生成 `Buckle-<version>.dmg`、SHA256 校验文件和发布说明，再由独立的 GitHub 发布任务自动创建稳定 Release；不经本地下载或上传。PR 不打包发布，编译检查任务只有只读权限。发布任务只接收当前 CI 的安装包；发布前通过 GitHub Git References／Tags API 检查已有版本标签最终指向本次构建的提交，兼容普通标签与附注标签；不一致或查询失败时停止，不自动移动或覆盖标签。标签不存在时由 GitHub CLI 按本次构建提交创建。已发布的版本跳过，不覆盖已有附件，新增版本须递增 manifest。构建产物保留 7 天，Release 附件长期保存。不再使用独立 Package 工作流。
+### CI 与编译触发
+
+`CI` 对 main 推送、目标为 main 的 PR 及手动运行进行变更分类。`Scripts/ci-changes.py` 按实际输入决定任务：文档和 README 不编译；通知、CI、发布及打包辅助脚本只运行相关基线检查；manifest 仅 `packagingEnabled` 改变不编译。App、扩展、资源、依赖锁、版本或构建号改变、混合提交和未知路径保守执行完整检查及 Universal 2 Debug 构建。手动 CI 始终强制完整验证。CI 不创建 DMG、tag、GitHub Release 或修改 Tap。
+
+`Package` 与 `Release` 均只接受在 main 上显式手动运行，且 manifest 的 `packagingEnabled` 必须开启；默认关闭。开关只允许打包，不把普通推送变成发行授权。两者通过 `Scripts/require-ci.py` 检查同一 SHA 最新的 push／手动 CI 及其当前 attempt 的 `Build Debug app` 必须实际成功；只做轻量检查、被跳过的编译或旧提交的成功都不能放行。只有开关变化而跳过编译时，先对该 main 提交手动运行 CI。
+
+- `Package` 在线构建 Universal 2、ad-hoc、更新关闭的测试 App，生成带版本及构建号的 `Buckle-<version>-<build>-test.dmg` 和 SHA256，上传保留 7 天的 artifact；不创建公开 Release、Cask 或 appcast。
+- `Release` 在线执行发行前检查、构建正式安装包，再由仅有发布权限的独立 job 接收本次同 SHA artifact，复核校验和及 CHANGELOG 后创建稳定 GitHub Release。不需要本地打包或上传。已有版本不覆盖；重新发行必须同时递增版本和构建号。
+
+### DMG 工具和输出
+
+打包环境单独安装 Python 3.10+ 与 `dmgbuild==1.6.7`，App 本身不依赖 Python。`Config/DMG/settings.py` 使用工具提供的箭头背景，设为图标视图、App 左侧、Applications 右侧及 `/Applications` 链接，不使用 Finder AppleScript。示例只说明已获授权时的本地调用，不自动打开 DMG：
+
+```bash
+python3 -m pip install 'dmgbuild==1.6.7'
+# Test app must have AppUpdaterEnabled disabled.
+python3 Scripts/create-dmg.py build/DerivedData-Package/Build/Products/Release/Buckle.app
+# Explicit release mode requires an updater-enabled app and release prerequisites.
+python3 Scripts/create-dmg.py build/DerivedData-Release/Build/Products/Release/Buckle.app --release
+```
+
+`Scripts/create-dmg.sh` 仅保留为 Python 入口的兼容包装。脚本核对 manifest、开关、App identity、版本与构建号，再执行既有主应用／扩展签名及 Universal 2 校验；默认测试模式拒绝更新 key 缺失或未关闭的 App，`--release` 要求开启。输出只允许在当前仓库非符号链接的 `build/` 中，拒绝覆盖已有 DMG。它不负责补签名、公证、公开发布或生成品牌素材。实际 DMG 外观和拖放安装仍须单独验收。
 
 ### 版本变更说明
 
-根目录 `CHANGELOG.md` 是 GitHub Release 与 Sparkle 更新说明的唯一内容来源，全部使用英文，面向用户说明真实变化，不直接堆叠 commit message。开发时写在 `## [Unreleased]` 下；准备发布时移入 `## [版本] - YYYY-MM-DD`，分类使用 Added、Improved、Changed、Fixed、Removed、Security，必要时使用 Known Issues；没有内容的分类省略，每条为单行 `- ` 列表。
+根目录 `CHANGELOG.md` 是 GitHub Release 与 Sparkle 更新说明的唯一内容来源，全部使用英文，面向用户说明真实变化，不直接堆叠 commit message。开发时写在 `## [Unreleased]` 下；准备发布时移入 `## [版本] - YYYY-MM-DD`，分类使用 Added、Improved、Changed、Fixed、Removed、Security、Breaking Changes，必要时使用 Known Issues；没有内容的分类省略，每条为单行 `- ` 列表。
 
-`node .github/scripts/release-notes.mjs --check` 验证当前 manifest 对应版本的说明；`--tag v0.1.2` 额外核对目标标签；默认输出当前版本段落，`--output <路径>` 写入指定文件。脚本拒绝重复版本、非法标题或日期、缺失版本、空分类及占位内容。英文和内容真实性仍需人工审核，脚本不替代语义审查。`Scripts/check.sh` 包含此检查；CI 只把当前版本段落作为 Release 正文，发布前再次核对构建产物里的正文。
+`node .github/scripts/release-notes.mjs --check` 验证当前 manifest 对应版本的说明；`--tag v0.1.2` 额外核对目标标签；默认输出当前版本段落，`--output <路径>` 写入指定文件。脚本拒绝重复版本、非法标题或日期、缺失版本、空分类及 TODO／TBD／FIXME／PLACEHOLDER 占位内容。英文和内容真实性仍需人工审核，脚本不替代语义审查。`Scripts/check.sh` 包含此检查；发行流程只把当前版本段落作为 Release 正文，发布前再次核对构建产物里的正文。
 
 更新源工作流从已发布标签中的 CHANGELOG 与 manifest 提取同一段文字，不读取可手动修改的 GitHub Release 正文。同名 `.md` 文件交给锁定的 Sparkle 2.10.0 `generate_appcast --embed-release-notes` 处理 Markdown 并嵌入签名清单，不自行维护第二份 HTML。此规则从 0.1.2 开始；旧标签没有 CHANGELOG 时会明确拒绝重建其更新说明，不改写已有发布或线上清单。依据：[Sparkle 2.10.0 更新说明实现](https://github.com/sparkle-project/Sparkle/blob/2.10.0/generate_appcast/FeedXML.swift)。
 
-通知工作流读取默认分支上的脚本，不执行 fork PR 的代码或下载其构建产物。权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。推送通知排除 `dependabot/**` 分支，避免机器人推送无法读取 Actions Secret 而失败；依赖更新仍通过 PR 和 CI 开始／完成事件通知，普通分支推送、Issue、评论和 Release 通知保留。通知失败会让相应工作流失败，不伪装为成功。目前没有自动重试，需通过 GitHub 重新运行失败任务。`Publish Update Feed` 的开始及完成结果也发送通知；GitHub Release 发布消息只说明 Release 已发布，不代表更新清单已同步。
+通知工作流读取默认分支上的受信脚本，不执行 PR 代码或下载其构建产物，权限只读；`DISCORD_WEBHOOK_URL` 只通过 Secret 进入通知步骤，消息禁用提及，错误不打印带凭据的请求地址。推送通知保留 `dependabot/**` 排除，机器人依赖更新通过 PR 和 CI 事件通知；同仓 PR 审核、代码行评论和 PR／Issue 会话评论也通知，PR 评论链接使用 pull 路径。fork Review 事件缺少仓库 Secret，明确跳过；PR 生命周期与会话评论仍由受信路径处理，不以执行 fork 代码补偿。
+
+`CI`、`Package`、`Release`、`Publish Update Feed` 分别报告流程开始与结束。完成通知查询该 run 当前 attempt 的真实 job：CI 标明 App 编译是否跳过，打包与发布不把跳过的 job 报为成功。自动 Release 依赖 `Release` 工作流结果报告，避免 `GITHUB_TOKEN` 创建 Release 不触发 `release` 事件造成漏报；手动发布仍保留 Release 事件通知。发布 job 与请求分发同步的 job 分开：Release 已创建而后续调度失败时，仍报告发行成功并说明同步请求失败；不能把已公开的安装包说成未发布。发布成功与更新源／Cask 同步成功分别报告。通知失败明确失败，可在 GitHub 重跑，不自动重试，也不将已排队当作安装包已生成。
 
 ### 浏览器启动参数
 
@@ -83,16 +108,16 @@ GitHub 仓库 `SlippinDylan/Buckle` 已配置 Secret `SPARKLE_ED_PRIVATE_KEY`、
 
 `ApplicationUpdateController` 管理一个 Sparkle 标准更新器；主应用确认单实例后立即启动更新服务，不依赖用户激活应用或打开设置。设置窗口的通用页仅提供自动检查开关，手动检查更新统一放在关于页；自动检查开关直接读写 Sparkle 自己持久化的偏好，并通过主线程 KVO 更新界面，不在每次启动时覆盖用户选择。检查不可用时禁用入口，配置错误或启动失败在设置窗口中明确显示。网络错误及下载安装交给 Sparkle 原生界面。八种语言均补齐入口文本。
 
-Debug 的 `BUCKLE_UPDATER_ENABLED=NO`，不要求更新源或私钥；PR 构建停用更新；main 的 CI 使用 Release 配置并启用更新。Release 使用 `BUCKLE_UPDATER_ENABLED=YES` 及 HTTPS 地址 `https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml`。启动前校验地址、公钥；`SURequireSignedFeed` 与 `SUVerifyUpdateBeforeExtraction` 始终开启。首次发布前地址尚无 Buckle 清单，不能把接入代码完成当作已有更新可下载。
+统一使用 `APP_UPDATER_ENABLED` 构建设置写入包内 `AppUpdaterEnabled`，updater 创建前读取实际包内值。Debug、普通 CI 与测试 Package 禁用更新；显式正式 Release 启用更新及 HTTPS 地址 `https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml`。`SURequireSignedFeed` 与 `SUVerifyUpdateBeforeExtraction` 始终开启。关于页在配置缺失或初始化失败时显示不可用原因；开发模式仍按既有约定不显示开发提示。
 
-正式更新沿用现有 `homebrew-tap` 的 GitHub Pages `docs/` 托管，不将安装包提交到 Tap 或源码仓库：
+正式更新使用现有 `homebrew-tap` 的 GitHub Pages `docs/` 托管，安装包留在 GitHub Release：
 
-1. 在 manifest 中递增 `version` 和 `build`，并设置 `packagingEnabled: true`。保持版本与构建号同时递增，避免 Sparkle 将新包视为旧构建。
-2. 推送 main 或在 GitHub Actions 手动运行 CI，检查通过且打包开关开启时自动构建并发布，无需本地编译或中转上传。只有明确需要本地构建时才运行 `bash Scripts/build.sh Release`，再运行 `bash Scripts/create-dmg.sh build/DerivedData/Build/Products/Release/Buckle.app build/Buckle-<version>.dmg`。两种方式均启用更新器。
-3. CI 自动在 `SlippinDylan/Buckle` 创建稳定 GitHub Release，标签为 `v<version>`，附件为唯一同名 `Buckle-<version>.dmg` 与 SHA256 校验文件。保持该下载地址可用，旧清单仍引用的包不要删除。私有仓库允许发布供有权限用户下载的 Release；不自动修改仓库可见性。公开更新源只允许引用公开仓库的安装包。
-4. CI 创建公开仓库的稳定 Release 后显式调用 `Publish Update Feed`；手动发布的公开稳定 Release 也会触发它。GitHub 规定由 `GITHUB_TOKEN` 创建的 Release 不会再触发其他工作流，因此不能只依赖 release 事件。私有仓库和预发布版本跳过公开更新源；也可在 main 手动输入已发布稳定版标签重跑。它读取标签中的 manifest，验证开关、稳定版状态与仓库公开性，挂载 DMG 验证签名、版本、构建号、公钥、更新地址和 Sparkle 组件，再调用 `Scripts/prepare-update.sh` 生成并验签清单。历史清单从 Tap 读取，最多保留三个版本；发布说明嵌入签名清单。
-5. 工作流只提交 `homebrew-tap/docs/buckle/appcast.xml`，不修改其他 App 的清单，也不自动生成 Homebrew Cask。此处使用 Tap 作为更新源宿主。推送冲突最多重试三次，失败明确报告；已发布包保持不变，可手动重跑清单同步。
-6. 首次发布后验收 Pages 地址、正确和错误签名、网络失败、检查偏好保存、从旧版本实际安装更新及重启后 Finder 扩展状态。本地构建或离线签名校验不能替代线上工作流和真实升级验收。
+1. 在 manifest 同时递增 `version` 和 `build`，将真实英文变更移入带日期的版本章节，并显式开启 `packagingEnabled`。推送 main 只运行 CI；必要时手动 CI 确认同 SHA 的实际 Debug 构建通过。
+2. 在 main 显式运行 `Release`。`Scripts/release-preflight.py` 在构建／发行前核对所有已发布稳定版标签的 manifest，拒绝版本或构建号未递增；GitHub 查询或元数据缺失时报错，不猜测已发布状态。正式构建前验证私钥推导公钥与 Variable、源码公钥相同，不轮换更新身份。
+3. 正式包使用 ad-hoc 签名和开启更新的 App，验证主应用／扩展身份、架构、版本和更新配置，生成 `Buckle-<version>.dmg`、SHA256 与匹配的英文说明。发行 job 再核对既有 tag 最终指向当前构建 SHA，兼容普通／附注 tag，拒绝移动 tag、覆盖工件或接受其他提交产物。只有全部检查通过才创建稳定 Release。
+4. 公开稳定 Release 创建成功后显式触发 `Publish Update Feed`；手动发布也支持 `release` 事件，失败可在 main 输入既有标签单独重跑。GitHub 的 `GITHUB_TOKEN` 创建事件不会链式触发其他工作流，不能只依赖 Release 事件。私有仓库／预发布版本不生成公开分发元数据，不自动改变可见性。
+5. 同步工作流下载已发布原 DMG，不重建 App；核对公开稳定版、标签 manifest、包内 identity／版本／构建号／公钥／更新地址及 Sparkle 组件，验证私钥配对，再生成和验签最多保留三版的 appcast。由真实工件的版本、不可变下载 URL 和 SHA-256 生成 `Casks/buckle.rb`，只修改 Tap 的 Buckle feed、Buckle Cask 和 README 对应条目，不覆盖其他 App。推送冲突最多重试三次。
+6. GitHub Release、更新清单和 Homebrew 同步是不同结果。上线后需验收 Pages、真实旧版更新、网络失败、错误签名、偏好保留，以及 `brew install --cask slippindylan/tap/buckle`。本轮仅接通同步代码，尚未推送或运行；不能把远端 Cask 尚不存在写成已可安装。
 
 `Scripts/prepare-update.sh <专用归档目录> <HTTPS下载目录>` 也可用于只生成文件而不发布。先解析依赖，以环境变量提供私钥和公钥；目录只存待发布归档及同名发布说明，Sparkle 可能将旧归档移入 `old_updates/`。脚本先验签已有清单，再在临时目录生成和验签候选清单；`Scripts/update_feed.py` 对照原清单验证新版本与构建号都递增，已发布构建的版本、下载地址、归档签名和长度不能改变。同一安装包可重复生成，清单验证失败时保留原清单。修改生成的清单或说明后必须重新签名，不手工修改线上已签名文件。
 
@@ -150,7 +175,7 @@ ad-hoc 签名的指定要求绑定具体构建，不能保证跨版本保留 TCC
 4. Finder 一级菜单和系统图标、多文件及文件夹 AirDrop、取消传输、入口开关、外置盘与新挂载卷；扩展缺失/未注册/禁用时的底部引导、系统设置返回后的状态刷新。
 5. 菜单栏原生菜单打开系统 LowMemoryPanel，确认正常内存状态也可手动打开、辅助功能/自动化权限拒绝和临时系统偏好恢复。
 6. 鼠标重置名单的添加、去重、移除、空态和重启后保存，以及所有已运行应用先退出再统一恢复、未运行应用不启动、卸载应用跳过、空名单仍刷新服务、异常退出后下次启动的恢复与稍后选项；验证每次重置均执行服务刷新、系统管理员授权、取消授权、应用拒绝退出、重启/恢复失败及状态图标，以及开机自启批准/禁用/重新登录。模拟检查不会实际终止应用或刷新系统服务。
-7. GitHub 中实际执行打包开关启闭后的 CI，核对检查失败不发布、PR 不发布、已有版本不覆盖，以及 DMG 架构、版本、校验和、Release 附件及 Discord 通知。
+7. GitHub 实际执行文档／通知／App／仅打包开关变更的 CI 分类、手动完整 CI、同 SHA 打包门禁，分别检查手动 Package 与 Release；核对检查失败不发布、PR 不发布、测试包关闭更新、已有版本不覆盖，以及 DMG 布局／安装、版本／架构／校验和、Release／Cask／appcast 与 Discord 实际阶段通知。
 8. 鼠标重置或内存窗口调用期间正常退出、由 Sparkle 安装更新触发退出，确认等待恢复完成；恢复失败时验证取消、重试、明确继续退出及内存记录查看。确认取消后可再次恢复，重试不再次重置服务或请求管理员授权。
 9. 已授权的旧版本通过 Sparkle 更新后，验证新版本权限检测、重新授权指引和返回应用后的自动复查；不能以相同版本的模拟权限检查代替真实升级验收。
 

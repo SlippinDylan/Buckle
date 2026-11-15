@@ -20,6 +20,8 @@ xcuserdata/
 *.app/
 *.dmg
 *.log
+__pycache__/
+*.py[cod]
 
 # Credentials and machine-local settings
 .env

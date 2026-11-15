@@ -25,7 +25,8 @@ final class ApplicationUpdateController {
         guard controller == nil else { return }
         do {
             let configuration = try UpdateConfiguration(
-                enabled: bundle.object(forInfoDictionaryKey: "BuckleUpdaterEnabled") as? String == "YES",
+                enabled: bundle.object(forInfoDictionaryKey: "AppUpdaterEnabled") as? Bool == true
+                    || bundle.object(forInfoDictionaryKey: "AppUpdaterEnabled") as? String == "YES",
                 feed: bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "",
                 publicKey: bundle.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? "")
             guard case .enabled = configuration else { return }

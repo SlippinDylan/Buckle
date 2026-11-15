@@ -1,0 +1,9 @@
+{
+  "standardsVersion": "0.1.0",
+  "appName": "Buckle",
+  "bundleIdentifier": "studio.slippindylan.Buckle",
+  "repository": "SlippinDylan/Buckle",
+  "minimumMacOS": "15.0",
+  "architectures": ["arm64", "x86_64"],
+  "exceptions": ["finder-read-only-shared-configuration", "debug-update-status-hidden", "dependabot-push-notifications"]
+}

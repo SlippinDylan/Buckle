@@ -1,0 +1,86 @@
+name: Package
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  gate:
+    name: Check packaging switch
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      enabled: ${{ steps.manifest.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: manifest
+        run: |
+          set -euo pipefail
+          node .github/scripts/sync-version.mjs --check
+          enabled="$(node .github/scripts/sync-version.mjs --packaging-enabled)"
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          if test "$enabled" = false; then
+            echo 'Packaging disabled; no app, DMG or artifact is produced.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+  package:
+    name: Build DMG
+    needs: gate
+    if: github.ref == 'refs/heads/main' && needs.gate.outputs.enabled == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require app integration and successful full CI for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -f 'Buckle.xcodeproj/project.pbxproj'
+          test -f 'Buckle.xcodeproj/xcshareddata/xcschemes/Buckle.xcscheme'
+          python3 -B Scripts/require-ci.py
+          python3 -B Scripts/check.py
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install packaging dependency
+        run: python3 -m pip install 'dmgbuild==1.6.7'
+      - name: Report actual stage start
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-start "Package"
+      - name: Build and validate test app
+        run: |
+          set -euo pipefail
+          xcodebuild build -project 'Buckle.xcodeproj' -scheme 'Buckle' \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData-Package \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO APP_UPDATER_ENABLED=NO
+          app='build/DerivedData-Package/Build/Products/Release/Buckle.app'
+          test -x "$app/Contents/MacOS/Buckle"
+          bash Scripts/verify-bundle.sh --distribution "$app"
+          for architecture in arm64 x86_64; do
+            lipo "$app/Contents/MacOS/Buckle" -verify_arch "$architecture"
+          done
+          python3 Scripts/create-dmg.py "$app"
+          (cd build && shasum -a 256 ./*.dmg > SHA256SUMS)
+          echo 'Ad-hoc test package. Not notarized; no Release, Cask or appcast was published.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: 'Buckle-test-${{ github.sha }}'
+          path: |
+            build/*.dmg
+            build/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7

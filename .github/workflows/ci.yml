@@ -5,92 +5,64 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
+  cancel-in-progress: true
 jobs:
-  check:
-    runs-on: macos-26
-    timeout-minutes: 20
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      version: ${{ steps.manifest.outputs.version }}
-      packaging: ${{ steps.manifest.outputs.packaging }}
+      has_app: ${{ steps.app.outputs.present }}
+      build: ${{ steps.changes.outputs.build }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read release manifest
-        id: manifest
+          fetch-depth: 0
+      - id: changes
+        name: Classify changes
+        run: python3 Scripts/ci-changes.py
+      - name: Check engineering baseline
+        if: steps.changes.outputs.baseline == 'true'
+        run: python3 -B Scripts/check.py
+      - id: app
         run: |
-          node .github/scripts/sync-version.mjs --check
-          echo "version=$(node -p 'JSON.parse(require("fs").readFileSync("Config/Release/manifest.json", "utf8")).version')" >> "$GITHUB_OUTPUT"
-          echo "packaging=$(node .github/scripts/sync-version.mjs --packaging-enabled)" >> "$GITHUB_OUTPUT"
+          if test -f 'Buckle.xcodeproj/project.pbxproj'; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'PENDING: Xcode app is not integrated. No app was compiled.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test '${{ steps.changes.outputs.build }}' = false; then
+            echo 'No app build inputs changed. App compilation skipped; packaging is always manual.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+  build:
+    name: Build Debug app
+    needs: baseline
+    if: needs.baseline.outputs.has_app == 'true' && needs.baseline.outputs.build == 'true'
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Report actual stage start
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-start "CI"
       - name: Test and check source
         run: bash Scripts/check.sh
       - name: Test native SwiftPM resource layout
         run: swift test --build-system native --filter PermissionGuidance
-      - name: Build Universal 2 app
+      - name: Build Universal 2 Debug app
         run: |
           xcodebuild build -project Buckle.xcodeproj -scheme Buckle \
-            -configuration Release -destination 'generic/platform=macOS' \
-            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages \
+            -configuration Debug -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData-CI -clonedSourcePackagesDirPath build/SourcePackages \
             -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-            BUCKLE_UPDATER_ENABLED=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'YES' || 'NO' }}
-          bash Scripts/verify-bundle.sh --distribution build/DerivedData/Build/Products/Release/Buckle.app
-      - name: Create release installer
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.manifest.outputs.packaging == 'true'
-        env:
-          VERSION: ${{ steps.manifest.outputs.version }}
-        run: |
-          mkdir -p build/release
-          bash Scripts/create-dmg.sh build/DerivedData/Build/Products/Release/Buckle.app "build/release/Buckle-$VERSION.dmg"
-          (cd build/release && shasum -a 256 "Buckle-$VERSION.dmg" > SHA256SUMS)
-          node .github/scripts/release-notes.mjs --tag "v$VERSION" --output build/release/RELEASE_NOTES.md
-      - name: Transfer installer to release job
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.manifest.outputs.packaging == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: Buckle-${{ steps.manifest.outputs.version }}-${{ github.sha }}
-          path: build/release/
-          if-no-files-found: error
-          retention-days: 7
-  release:
-    name: Publish GitHub Release
-    needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.check.outputs.packaging == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      VERSION: ${{ needs.check.outputs.version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Check whether version is already published
-        id: plan
-        run: node .github/scripts/plan-release.mjs
-      - name: Download installer built by this CI run
-        if: steps.plan.outputs.publish == 'true'
-        run: gh run download "$GITHUB_RUN_ID" --name "Buckle-$VERSION-$GITHUB_SHA" --dir release-assets
-      - name: Publish installer and checksum
-        if: steps.plan.outputs.publish == 'true'
-        run: |
-          node .github/scripts/release-notes.mjs --tag "v$VERSION" --output expected-release-notes.md
-          cmp expected-release-notes.md release-assets/RELEASE_NOTES.md
-          (cd release-assets && shasum -a 256 -c SHA256SUMS)
-          gh release create "v$VERSION" "release-assets/Buckle-$VERSION.dmg" release-assets/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Buckle $VERSION" --latest --notes-file release-assets/RELEASE_NOTES.md
-          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION" >> "$GITHUB_STEP_SUMMARY"
-      - name: Synchronize public update feed
-        if: steps.plan.outputs.publish == 'true' && !github.event.repository.private
-        run: gh workflow run publish-update-feed.yml --ref main -f "tag=v$VERSION"
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= APP_UPDATER_ENABLED=NO
+          bash Scripts/verify-bundle.sh --distribution build/DerivedData-CI/Build/Products/Debug/Buckle.app

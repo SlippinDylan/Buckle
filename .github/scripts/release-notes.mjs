@@ -39,7 +39,7 @@ export function extractReleaseNotes(source, version, tag = `v${version}`) {
   const categories = new Set();
   for (const line of release.lines) {
     if (!line.trim()) continue;
-    const heading = /^### (Added|Improved|Changed|Fixed|Removed|Security|Known Issues)$/.exec(line);
+    const heading = /^### (Added|Improved|Changed|Fixed|Removed|Security|Known Issues|Breaking Changes)$/.exec(line);
     if (heading) {
       assert.ok(category === undefined || count > 0, 'Empty changelog category.');
       category = heading[1];
@@ -48,7 +48,7 @@ export function extractReleaseNotes(source, version, tag = `v${version}`) {
       count = 0;
     } else {
       assert.ok(category && /^- \S/.test(line), 'Release notes must use English categories and nonempty bullet points.');
-      assert.ok(!/\b(TODO|TBD|PLACEHOLDER)\b/i.test(line), 'Release notes contain a placeholder.');
+      assert.ok(!/\b(TODO|TBD|FIXME|PLACEHOLDER)\b/i.test(line), 'Release notes contain a placeholder.');
       count += 1;
     }
   }

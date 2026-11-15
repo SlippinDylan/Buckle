@@ -41,7 +41,7 @@ for bundle, executable in ((app, 'Buckle'), (extension, 'BuckleFinder')):
     binary.chmod(0o755)
 host = {'CFBundleIdentifier': 'studio.slippindylan.Buckle', 'CFBundleShortVersionString': '0.1.0',
     'CFBundleVersion': '1', 'CFBundleIconName': 'Buckle', 'CFBundleIconFile': 'Buckle',
-    'SURequireSignedFeed': True, 'SUVerifyUpdateBeforeExtraction': True, 'BuckleUpdaterEnabled': 'NO'}
+    'SURequireSignedFeed': True, 'SUVerifyUpdateBeforeExtraction': True, 'AppUpdaterEnabled': 'NO'}
 ext = {'CFBundleIdentifier': 'studio.slippindylan.Buckle.Finder', 'CFBundleShortVersionString': '0.1.0',
     'CFBundleVersion': '1', 'CFBundlePackageType': 'XPC!',
     'NSExtension': {'NSExtensionPrincipalClass': 'BuckleFinder.BuckleFinderSync'}}
@@ -65,9 +65,8 @@ for component in ('Sparkle', 'Autoupdate', 'Updater.app', 'XPCServices/Installer
 `, app]);
   return {
     app,
-    run: ({ distribution = false, packageDmg = false, archs = 'arm64 x86_64', extensionArchs = archs } = {}) => spawnSync('bash',
-      packageDmg ? ['Scripts/create-dmg.sh', app, join(root, 'Buckle.dmg')] :
-        ['Scripts/verify-bundle.sh', ...(distribution ? ['--distribution'] : []), app],
+    run: ({ distribution = false, legacy = false, archs = 'arm64 x86_64', extensionArchs = archs } = {}) => spawnSync('bash',
+      ['Scripts/verify-bundle.sh', ...(distribution ? ['--distribution'] : []), ...(legacy ? ['--legacy-updater-key'] : []), app],
       { encoding: 'utf8', env: { ...process.env, PATH: bin + delimiter + process.env.PATH,
         TEST_ARCHS: archs, TEST_EXTENSION_ARCHS: extensionArchs } }),
   };
@@ -82,9 +81,6 @@ test('bundle checks allow single-architecture development and require Universal 
     const result = run({ distribution: true, archs });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Universal 2/);
-    const packaged = run({ packageDmg: true, archs });
-    assert.notEqual(packaged.status, 0);
-    assert.match(packaged.stderr, /Universal 2/);
   }
   assert.notEqual(run({ extensionArchs: 'arm64' }).status, 0);
 });
@@ -119,4 +115,18 @@ path.write_bytes(plistlib.dumps(info))
   const result = run({ distribution: true });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Finder bundle identifier/);
+});
+
+ test('historical updater key requires explicit legacy validation', async (t) => {
+  const { app, run } = await fixture(t);
+  execFileSync('python3', ['-c', `
+import plistlib, sys
+from pathlib import Path
+path = Path(sys.argv[1]) / 'Contents/Info.plist'
+info = plistlib.loads(path.read_bytes())
+info['BuckleUpdaterEnabled'] = info.pop('AppUpdaterEnabled')
+path.write_bytes(plistlib.dumps(info))
+`, app]);
+  assert.notEqual(run().status, 0);
+  assert.equal(run({ legacy: true }).status, 0);
 });

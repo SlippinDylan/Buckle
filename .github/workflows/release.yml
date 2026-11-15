@@ -1,0 +1,138 @@
+name: Release
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: buckle-release
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Validate release request
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      enabled: ${{ steps.manifest.outputs.enabled }}
+      version: ${{ steps.manifest.outputs.version }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check manifest and explicit packaging switch
+        id: manifest
+        run: |
+          node .github/scripts/sync-version.mjs --check
+          echo "enabled=$(node .github/scripts/sync-version.mjs --packaging-enabled)" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p 'JSON.parse(require("fs").readFileSync("Config/Release/manifest.json", "utf8")).version')" >> "$GITHUB_OUTPUT"
+      - name: Require exact-commit full CI and increasing release identity
+        if: steps.manifest.outputs.enabled == 'true'
+        run: |
+          python3 -B Scripts/require-ci.py
+          python3 -B Scripts/release-preflight.py
+          python3 -B Scripts/check.py
+
+  build:
+    name: Build release installer
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+      VERSION: ${{ needs.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify signing readiness before building the updater-enabled app
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | node .github/scripts/update-key.mjs
+          python3 - <<'PY'
+          import os, plistlib
+          with open('App/Info.plist', 'rb') as source:
+              assert plistlib.load(source)['SUPublicEDKey'] == os.environ['SPARKLE_PUBLIC_KEY'], 'App and signing public keys differ'
+          PY
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install packaging dependency
+        run: python3 -m pip install 'dmgbuild==1.6.7'
+      - name: Build and validate Universal 2 release installer
+        run: |
+          xcodebuild build -project Buckle.xcodeproj -scheme Buckle \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData-Release -clonedSourcePackagesDirPath build/SourcePackages \
+            -onlyUsePackageVersionsFromResolvedFile ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= APP_UPDATER_ENABLED=YES
+          python3 Scripts/create-dmg.py build/DerivedData-Release/Build/Products/Release/Buckle.app --release
+          node .github/scripts/release-notes.mjs --tag "v$VERSION" --output "build/Buckle-$VERSION.md"
+          (cd build && shasum -a 256 "Buckle-$VERSION.dmg" > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Buckle-release-${{ github.sha }}
+          path: |
+            build/*.dmg
+            build/*.md
+            build/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: [gate, build]
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Recheck release identity and tag against this build
+        run: |
+          python3 -B Scripts/release-preflight.py
+          node .github/scripts/plan-release.mjs
+      - name: Download and verify installer from this run
+        run: |
+          gh run download "$GITHUB_RUN_ID" --name "Buckle-release-$GITHUB_SHA" --dir build/release-assets
+          node .github/scripts/release-notes.mjs --tag "v$VERSION" --output build/expected-release-notes.md
+          cmp build/expected-release-notes.md "build/release-assets/Buckle-$VERSION.md"
+          (cd build/release-assets && shasum -a 256 -c SHA256SUMS)
+      - name: Report actual stage start
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-start "Release"
+      - name: Publish immutable installer and release notes
+        run: |
+          gh release create "v$VERSION" "build/release-assets/Buckle-$VERSION.dmg" build/release-assets/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "Buckle $VERSION" --latest --notes-file build/expected-release-notes.md
+  request-distribution:
+    name: Request distribution synchronization
+    needs: [gate, publish]
+    if: '!github.event.repository.private'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.gate.outputs.version }}
+    steps:
+      - name: Request public Cask and signed update feed synchronization
+        run: gh workflow run publish-update-feed.yml --repo "$GITHUB_REPOSITORY" --ref main -f "tag=v$VERSION"

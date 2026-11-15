@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   publish:
+    name: Synchronize distribution metadata
     if: (github.event_name == 'release' && !github.event.release.prerelease && !github.event.repository.private) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: macos-26
     timeout-minutes: 20
@@ -34,8 +35,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.TAG }}
-          path: published-source
+          path: build/published-source
           persist-credentials: false
+      - name: Report actual stage start
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-start "Publish Update Feed"
       - name: Validate release and packaging switch
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,14 +49,14 @@ jobs:
           node --input-type=module <<'JS'
           import { readReleaseManifest } from './.github/scripts/sync-version.mjs';
           import { appendFile } from 'node:fs/promises';
-          const manifest = await readReleaseManifest({ rootDirectory: 'published-source' });
+          const manifest = await readReleaseManifest({ rootDirectory: 'build/published-source' });
           if (!manifest.packagingEnabled || process.env.TAG !== `v${manifest.version}`) {
             throw Error('Expected an enabled release manifest and its matching stable version tag.');
           }
           await appendFile(process.env.GITHUB_ENV,
             `VERSION=${manifest.version}\nBUILD=${manifest.build}\nDMG_NAME=Buckle-${manifest.version}.dmg\n`);
           JS
-          node .github/scripts/release-notes.mjs --root published-source --tag "$TAG" --check
+          node .github/scripts/release-notes.mjs --root build/published-source --tag "$TAG" --check
           test "$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq '.visibility')" = PUBLIC
           test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = false
           test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')" = false
@@ -61,8 +66,9 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/buckle-updates"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$DMG_NAME" --dir "$RUNNER_TEMP/buckle-updates"
-          node .github/scripts/release-notes.mjs --root published-source --tag "$TAG" \
+            --pattern "$DMG_NAME" --pattern SHA256SUMS --dir "$RUNNER_TEMP/buckle-updates"
+          (cd "$RUNNER_TEMP/buckle-updates" && shasum -a 256 -c SHA256SUMS)
+          node .github/scripts/release-notes.mjs --root build/published-source --tag "$TAG" \
             --output "$RUNNER_TEMP/buckle-updates/${DMG_NAME%.dmg}.md"
       - name: Resolve pinned Sparkle tools
         run: bash Scripts/resolve-dependencies.sh
@@ -74,10 +80,26 @@ jobs:
           hdiutil attach "$RUNNER_TEMP/buckle-updates/$DMG_NAME" -readonly -nobrowse -mountpoint "$mount_root/volume"
           trap 'hdiutil detach "$mount_root/volume" && rm -rf "$mount_root"' EXIT
           app="$mount_root/volume/Buckle.app"
-          bash Scripts/verify-bundle.sh --distribution "$app"
+          updater_key=$(python3 - <<'PY'
+          import plistlib
+          with open('build/published-source/App/Info.plist', 'rb') as source:
+              info = plistlib.load(source)
+          keys = [key for key in ('AppUpdaterEnabled', 'BuckleUpdaterEnabled') if key in info]
+          assert len(keys) == 1, 'Published source must declare exactly one updater switch'
+          print(keys[0])
+          PY
+          )
+          legacy=()
+          if test "$updater_key" = BuckleUpdaterEnabled; then legacy=(--legacy-updater-key); fi
+          bash Scripts/verify-bundle.sh --distribution "${legacy[@]}" "$app"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$VERSION"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = "$BUILD"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :BuckleUpdaterEnabled' "$app/Contents/Info.plist")" = YES
+          python3 - "$app/Contents/Info.plist" "$updater_key" <<'PY'
+          import plistlib, sys
+          with open(sys.argv[1], 'rb') as source:
+              flag = plistlib.load(source)[sys.argv[2]]
+          assert flag is True or flag == 'YES', 'Published installer must enable signed updates'
+          PY
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")" = "$SPARKLE_PUBLIC_KEY"
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' App/Info.plist)" = "$SPARKLE_PUBLIC_KEY"
           test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" = 'https://slippindylan.github.io/homebrew-tap/buckle/appcast.xml'
@@ -87,14 +109,14 @@ jobs:
           repository: SlippinDylan/homebrew-tap
           ref: main
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          path: homebrew-tap
+          path: build/homebrew-tap
       - name: Generate and verify signed update feed
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           archive_dir="$RUNNER_TEMP/buckle-updates"
-          feed=homebrew-tap/docs/buckle/appcast.xml
+          feed=build/homebrew-tap/docs/buckle/appcast.xml
           if [[ -f "$feed" ]]; then cp "$feed" "$archive_dir/appcast.xml"; fi
           bash Scripts/prepare-update.sh "$archive_dir" \
             "https://github.com/SlippinDylan/Buckle/releases/download/$TAG/"
@@ -115,18 +137,24 @@ jobs:
           PY
           mkdir -p "$(dirname "$feed")"
           cp "$archive_dir/appcast.xml" "$feed"
-      - name: Publish feed to Homebrew tap
+      - name: Generate Cask and update Tap instructions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -B Scripts/distribution.py "$RUNNER_TEMP/buckle-updates/$DMG_NAME" build/homebrew-tap --version "$VERSION"
+          ruby -c build/homebrew-tap/Casks/buckle.rb
+      - name: Publish feed and Cask to Homebrew tap
         run: |
           set -euo pipefail
-          git -C homebrew-tap config user.name 'github-actions[bot]'
-          git -C homebrew-tap config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -C homebrew-tap add docs/buckle/appcast.xml
-          if git -C homebrew-tap diff --cached --quiet; then exit 0; fi
-          git -C homebrew-tap diff --cached --check
-          git -C homebrew-tap commit -m "chore: update Buckle feed to $VERSION"
+          git -C build/homebrew-tap config user.name 'github-actions[bot]'
+          git -C build/homebrew-tap config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C build/homebrew-tap add docs/buckle/appcast.xml Casks/buckle.rb README.md
+          if git -C build/homebrew-tap diff --cached --quiet; then exit 0; fi
+          git -C build/homebrew-tap diff --cached --check
+          git -C build/homebrew-tap commit -m "chore: update Buckle distribution to $VERSION"
           for attempt in 1 2 3; do
-            if git -C homebrew-tap push origin main; then exit 0; fi
+            if git -C build/homebrew-tap push origin main; then exit 0; fi
             if [[ "$attempt" == 3 ]]; then exit 1; fi
-            git -C homebrew-tap fetch origin main
-            git -C homebrew-tap rebase origin/main
+            git -C build/homebrew-tap fetch origin main
+            git -C build/homebrew-tap rebase origin/main
           done

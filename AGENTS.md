@@ -1,16 +1,16 @@
 # Buckle 工程约定
 
-Buckle 是 macOS 15+ 原生后台菜单栏工具。产品入口见 `README.md`；开发、打包、排除项及实机验收见 `docs/development.md`。
+Buckle 是 macOS 15+ 原生后台菜单栏工具。产品入口见 `README.md`；开发、打包、排除项及实机验收见 `docs/development.md`；清理边界见 `docs/development-cleanup.md`；14 项规范接入与例外见 `docs/setup-status.md`、`Config/standards.json`。
 
 - 修改前检查 Git 状态和目标目录指令，保留用户变更；沿用现有职责边界，不顺带重构。
 - 保持一个主应用与稳定的主 bundle identity；允许已授权的内嵌 Finder Sync `.appex`，不新增独立 helper app 或开发版应用身份，除非需求明确要求。
 - 用户明确不购买付费 Apple 开发者证书。Debug 与分发以无需账号的 ad-hoc 签名、空 `DEVELOPMENT_TEAM` 为目标；不将 Developer ID、公证或付费团队能力作为基础功能前提。Finder 扩展的无付费签名、注册与加载必须实测，不能以主应用可编译代替。
-- 版本、构建号和打包开关只编辑 `Config/Release/manifest.json`，然后同步生成配置；不在工程中重复设置。
+- 版本、构建号和打包开关只编辑 `Config/Release/manifest.json`，然后同步生成配置；不在工程中重复设置。打包默认关闭；CI 只检查和构建，Package／Release 显式手动触发，开关开启不代表推送后允许自动发行。
 - 系统边界显式处理失败，UI 保持主线程隔离；内存窗口仅由用户手动打开，不后台监测内存或自动提醒，不自动清理或终止应用。
 - 不修改用户的个人脚本、不记录凭据；Webhook 只能放在 GitHub Secret。
-- 界面八种语言与 glilo 一致，默认跟随系统；新增文本必须补齐全部资源。
+- 界面支持 en、zh-Hans、zh-Hant、ja、ko、de、fr、es，英文为开发语言，默认跟随系统；新增文本必须补齐全部资源。
 - README 默认首页 `README.md` 使用英文，`docs/README.*.md` 提供其余七种界面语言的对应版本。修改任一 README 的共享内容（功能、安装步骤、使用限制、版本与发布状态、文档结构、图片或链接）时，必须在同一变更中同步更新其他语言版本，不允许只改英文或中文。单一语言的拼写、语法修正无需机械修改其他译文；界面入口名称以对应语言资源中的实际文本为准。
-- Swift 代码按 `.swift-format` 格式化，运行 `bash Scripts/check.sh`。完整应用构建仅在用户明确要求时执行；视觉与系统实测未经执行不得宣称通过。
+- 工程辅助变更运行 `python3 -B Scripts/check.py`；Swift 代码按 `.swift-format` 格式化，运行 `bash Scripts/check.sh`。完整应用构建仅在用户明确要求时执行；视觉与系统实测未经执行不得宣称通过。
 - 开发文档与工程规范使用中文；README 按上述多语言规则维护；代码注释用英文。未经明确要求不提交、推送、打 tag 或创建 Release。
 
 - `CHANGELOG.md` 及每版 Release／Sparkle 更新说明统一使用英文，不扩展为八语。开发中在 `Unreleased` 记录用户可见变化；发布前归入与 manifest 一致的版本并填写日期。Release 与 Sparkle 均由脚本提取该版本段落，禁止用固定模板或提交记录替代实际变更说明；缺失、空白、重复版本或标签不匹配时阻止发布。

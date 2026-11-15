@@ -4,22 +4,31 @@ on:
     # Dependabot pushes cannot read Actions secrets; PR and CI events report these updates.
     branches-ignore: ['dependabot/**']
   pull_request_target:
-    types: [opened, reopened, ready_for_review, closed]
+    types: [opened, reopened, ready_for_review, closed, review_requested]
   issues:
     types: [opened, reopened, closed]
   issue_comment:
     types: [created]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   workflow_run:
-    workflows: [CI, Publish Update Feed]
+    workflows: [CI, Package, Release, Publish Update Feed]
     types: [in_progress, completed]
   release:
     types: [published]
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   notify:
+    # Fork review events have no repository secrets; lifecycle and conversation comments still notify.
+    if: >-
+      !startsWith(github.event_name, 'pull_request_review') ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -33,4 +42,5 @@ jobs:
       - name: Send notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/discord-notify.mjs
