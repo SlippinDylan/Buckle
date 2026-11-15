@@ -25,22 +25,22 @@ xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos
 build/Checks/browser-launcher
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/MouseResetController.swift App/Core/MouseResetConfiguration.swift App/Core/ApplicationLifecycle.swift App/Localization.swift \
-    App/SystemMemoryPanel.swift App/ApplicationRecovery.swift Tests/MouseResetCheck.swift \
+    App/AutomationPermission.swift App/SystemMemoryPanel.swift App/ApplicationRecovery.swift Tests/MouseResetCheck.swift \
     -o build/Checks/mouse-reset
 build/Checks/mouse-reset
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
-    App/SystemMemoryPanel.swift App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/SystemMemoryPanelCheck.swift \
+    App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/SystemMemoryPanelCheck.swift \
     -o build/Checks/system-memory-panel
 build/Checks/system-memory-panel
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/AirDropService.swift App/Localization.swift Tests/AirDropCheck.swift -o build/Checks/airdrop
 build/Checks/airdrop
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
-    App/FinderActionService.swift App/FinderMoveService.swift App/AirDropService.swift App/Core/FinderIntegration.swift \
+    App/AutomationPermission.swift App/CommandRunner.swift App/FinderActionService.swift App/FinderMoveService.swift App/AirDropService.swift App/Core/FinderIntegration.swift \
     App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/FinderActionCheck.swift -o build/Checks/finder-action
 build/Checks/finder-action
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
-    App/FinderMoveService.swift App/Core/FinderIntegration.swift App/Localization.swift Tests/FinderMoveCheck.swift -o build/Checks/finder-move
+    App/AutomationPermission.swift App/CommandRunner.swift App/FinderMoveService.swift App/Core/FinderIntegration.swift App/Localization.swift Tests/FinderMoveCheck.swift -o build/Checks/finder-move
 build/Checks/finder-move
 xcrun swiftc -parse-as-library -swift-version 6 -application-extension -target "$(uname -m)-apple-macos15.0" \
     FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Localization.swift Tests/FinderPathCopyCheck.swift -o build/Checks/finder-copy-path
@@ -55,7 +55,7 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -Xlinker -rpath -Xlinker "$(pwd)/$sparkle_framework" -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift \
     App/BrowserLauncher.swift App/FinderExtensionController.swift App/MouseResetController.swift App/MenuBarRestartController.swift \
-    App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift -o build/Checks/native-menu
+    App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift -o build/Checks/native-menu
 build/Checks/native-menu
 xcrun swift-format lint --strict --recursive App FinderExtension Support Tests Package.swift
 python3 Scripts/check-localizations.py

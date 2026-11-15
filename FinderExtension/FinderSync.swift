@@ -46,31 +46,43 @@ final class BuckleFinderSync: FIFinderSync {
             {
                 try add(.airDrop, files: context.files, title: service.title, image: service.image, to: menu)
             }
-            if configuration.terminalEnabled, let directory = try context.directory() {
+            let directory: URL?
+            if configuration.terminalEnabled || configuration.moveEnabled {
+                do { directory = try context.directory() } catch {
+                    directory = nil
+                    logger.error("Could not read Finder directory: \(error.localizedDescription, privacy: .private)")
+                    let item = NSMenuItem(
+                        title: localized("finder.directory.unavailable", language: language), action: nil,
+                        keyEquivalent: "")
+                    item.isEnabled = false
+                    menu.addItem(item)
+                }
+            } else {
+                directory = nil
+            }
+            if configuration.terminalEnabled, let directory {
                 try add(
                     .terminal, files: [directory], title: localized("finder.terminal.title", language: language),
-                    image: NSImage(systemSymbolName: "terminal", accessibilityDescription: nil), to: menu)
+                    image: nil, to: menu)
             }
             if configuration.copyPathEnabled {
                 let item = NSMenuItem(
                     title: localized("finder.copyPath.title", language: language), action: #selector(copyPath(_:)),
                     keyEquivalent: "")
                 item.target = self
-                item.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
                 item.representedObject = context.files
                 menu.addItem(item)
             }
-            if configuration.moveEnabled, let directory = try context.directory() {
+            if configuration.moveEnabled, let directory {
                 let item = NSMenuItem(
                     title: localized("finder.move.title", language: language), action: #selector(performAction(_:)),
                     keyEquivalent: "")
                 item.target = self
-                item.image = NSImage(systemSymbolName: "folder.badge.arrow.forward", accessibilityDescription: nil)
                 item.isEnabled = NSPasteboard.general.canReadObject(
                     forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
                 item.representedObject = try FinderActionRequest(
                     action: .move, files: [directory], clipboardChangeCount: NSPasteboard.general.changeCount
-                ).url()
+                ).signed(using: FinderConfigurationStore.standard().loadMoveKey()).url()
                 menu.addItem(item)
             }
         } catch {
@@ -124,12 +136,23 @@ final class BuckleFinderSync: FIFinderSync {
 
     @objc private func copyPath(_ sender: NSMenuItem) {
         guard let files = sender.representedObject as? [URL] else { return }
+        var language: String?
         do {
-            guard try FinderConfigurationStore.standard().load().copyPathEnabled else { return }
+            let configuration = try FinderConfigurationStore.standard().load()
+            language = configuration.language
+            guard configuration.copyPathEnabled else { return }
             try FinderPathCopy.write(files, to: .general)
         } catch {
             logger.error("Could not copy paths: \(error.localizedDescription, privacy: .private)")
-            NSSound.beep()
+            let alert = NSAlert()
+            alert.messageText = localized("finder.copyPath.failed", language: language)
+            alert.informativeText =
+                localized("finder.copyPath.failed.help", language: language)
+                + "\n\n" + error.localizedDescription
+            alert.alertStyle = .warning
+            alert.window.level = .modalPanel
+            alert.window.orderFrontRegardless()
+            alert.runModal()
         }
     }
 
@@ -149,8 +172,9 @@ enum FinderPathCopy {
         guard !files.isEmpty, files.allSatisfy({ $0.isFileURL }) else {
             throw FinderActionRequest.RequestError.invalidFiles
         }
+        let paths = files.map(\.path).joined(separator: "\n")
         pasteboard.clearContents()
-        guard pasteboard.setString(files.map(\.path).joined(separator: "\n"), forType: .string) else {
+        guard pasteboard.setString(paths, forType: .string) else {
             throw CocoaError(.fileWriteUnknown)
         }
     }

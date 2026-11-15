@@ -58,8 +58,15 @@ final class ApplicationSettingsWindowController: NSWindowController, NSToolbarDe
         window.makeKeyAndOrderFront(nil)
     }
 
+    func requestPermission(_ requirement: PermissionRequirement, from view: NSView) {
+        settingsViewController.requestPermission(requirement, from: view)
+    }
+
     func refresh() {
-        if window?.isVisible == true { settingsViewController.refresh() }
+        if window?.isVisible == true {
+            settingsViewController.refresh()
+            settingsViewController.refreshPermissionStatus()
+        }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

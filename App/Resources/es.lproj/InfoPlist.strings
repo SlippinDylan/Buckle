@@ -1,1 +1,1 @@
-"NSAppleEventsUsageDescription" = "Buckle usa System Events para abrir la ventana de memoria nativa solicitada.";
+"NSAppleEventsUsageDescription" = "Buckle controla Finder para abrir la carpeta de destino y System Events para activar los traslados nativos y la ventana de memoria del sistema solicitados.";

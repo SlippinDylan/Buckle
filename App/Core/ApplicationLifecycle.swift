@@ -4,7 +4,7 @@ import Observation
 @MainActor @Observable
 final class ApplicationLifecycle {
     enum Operation: Hashable {
-        case memoryPanel, memoryPermissions, mouseReset, finderAction, menuBarRestart
+        case memoryPanel, memoryPermissions, mouseReset, finderAction, finderPermissions, menuBarRestart
     }
 
     enum RecoveryDecision { case retry, cancel, quit }

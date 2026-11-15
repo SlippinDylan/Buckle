@@ -1,10 +1,13 @@
 import AppKit
+import CryptoKit
 
 @MainActor
-private final class FakeAirDrop: AirDropSending {
-    var completion: CheckedContinuation<Void, Error>?
-    func sendFiles(_ urls: [URL]) async throws {
-        try await withCheckedThrowingContinuation { completion = $0 }
+private final class FakeAirDrop: AirDropPresenting {
+    var requests: [[URL]] = []
+    var error: Error?
+    func present(_ urls: [URL]) throws {
+        if let error { throw error }
+        requests.append(urls)
     }
 }
 
@@ -18,31 +21,42 @@ enum FinderActionCheck {
                 preconditionFailure(error.localizedDescription)
             }
         }
+        let moveKey = SymmetricKey(size: .bits256)
         let enabledConfiguration = FinderConfiguration(
             airDropEnabled: true, terminalEnabled: true, copyPathEnabled: true, moveEnabled: true)
-        for error: Error? in [nil, CocoaError(.userCancelled), CocoaError(.fileReadNoPermission)] {
-            let lifecycle = ApplicationLifecycle()
-            let airDrop = FakeAirDrop()
-            let service = FinderActionService(
-                lifecycle: lifecycle, airDrop: airDrop, configuration: { enabledConfiguration })
-            let sharing = Task {
-                do {
-                    try await service.handle(FinderActionRequest(action: .airDrop, files: [root]))
-                } catch {
-                    precondition(
-                        !lifecycle.shouldPresentUserActionError(error), "Quit must suppress late sharing errors")
-                }
-            }
-            while airDrop.completion == nil { await Task.yield() }
-            var terminationReady = false
-            lifecycle.onReadyToTerminate = { terminationReady = true }
-            precondition(lifecycle.isActive(.finderAction))
-            precondition(!lifecycle.requestTermination() && !terminationReady)
-            guard let completion = airDrop.completion else { preconditionFailure("Sharing did not start") }
-            if let error { completion.resume(throwing: error) } else { completion.resume() }
-            await sharing.value
-            precondition(terminationReady && !lifecycle.isActive(.finderAction))
-        }
+        let sharingLifecycle = ApplicationLifecycle()
+        let airDrop = FakeAirDrop()
+        var terminalAfterSharing = false
+        let shortcut = FinderActionService(
+            lifecycle: sharingLifecycle, airDrop: airDrop,
+            openTerminal: { _ in terminalAfterSharing = true }, configuration: { enabledConfiguration })
+        try await shortcut.handle(FinderActionRequest(action: .airDrop, files: [root]))
+        precondition(airDrop.requests == [[root]])
+        precondition(!sharingLifecycle.isActive(.finderAction), "AirDrop must not wait for a delegate callback")
+        try await shortcut.handle(FinderActionRequest(action: .terminal, files: [root]))
+        precondition(terminalAfterSharing)
+        airDrop.error = CocoaError(.fileReadNoPermission)
+        do {
+            try await shortcut.handle(FinderActionRequest(action: .airDrop, files: [root]))
+            preconditionFailure("Presentation failure was hidden")
+        } catch CocoaError.fileReadNoPermission {}
+        precondition(!sharingLifecycle.isActive(.finderAction))
+        precondition(sharingLifecycle.requestTermination(), "Sharing must not hold normal quit open")
+        let realLifecycle = ApplicationLifecycle()
+        let sharingService = NSSharingService(
+            title: "Test", image: NSImage(size: NSSize(width: 1, height: 1)), alternateImage: nil, handler: {})
+        let realAirDrop = AirDropService(
+            makeService: { sharingService }, perform: { _, _ in },
+            reportError: { _ in preconditionFailure("Unexpected sharing error") })
+        var openedWhileSharing = false
+        let realShortcut = FinderActionService(
+            lifecycle: realLifecycle, airDrop: realAirDrop,
+            openTerminal: { _ in openedWhileSharing = true }, configuration: { enabledConfiguration })
+        try await realShortcut.handle(FinderActionRequest(action: .airDrop, files: [root]))
+        precondition(sharingService.delegate != nil, "The session must still be awaiting system callbacks")
+        try await realShortcut.handle(FinderActionRequest(action: .terminal, files: [root]))
+        precondition(openedWhileSharing && !realLifecycle.isActive(.finderAction))
+        precondition(realLifecycle.requestTermination())
         let lifecycle = ApplicationLifecycle()
         var opened: [URL] = []
         let service = FinderActionService(
@@ -74,48 +88,46 @@ enum FinderActionCheck {
         try Data("keep".utf8).write(to: source)
         board.writeObjects([source as NSURL])
         let moveRequest = try FinderActionRequest(action: .move, files: [root], clipboardChangeCount: board.changeCount)
+            .signed(using: moveKey)
         var moved: [FinderMovePlan] = []
-        var confirmations = 0
         let mover = FinderActionService(
-            lifecycle: lifecycle, configuration: { enabledConfiguration }, pasteboard: board,
-            confirmMove: { plan in
-                confirmations += 1
+            lifecycle: lifecycle, configuration: { enabledConfiguration }, pasteboard: board, moveKey: { moveKey },
+            move: { plan in
+                precondition(lifecycle.isActive(.finderAction))
                 precondition(plan.sources == [source] && plan.destination == root)
-                return true
-            }, move: { moved.append($0) })
-        try await mover.handle(moveRequest)
-        precondition(moved.count == 1 && confirmations == 1)
-        let cancelled = FinderActionService(
-            lifecycle: lifecycle, configuration: { enabledConfiguration }, pasteboard: board,
-            confirmMove: { _ in false }, move: { _ in preconditionFailure("Cancelled move ran") })
-        try await cancelled.handle(moveRequest)
-        let changed = FinderActionService(
-            lifecycle: lifecycle, configuration: { enabledConfiguration }, pasteboard: board,
-            confirmMove: { _ in
-                board.clearContents()
-                board.setString("changed", forType: .string)
-                return true
-            }, move: { _ in preconditionFailure("Changed clipboard was accepted") })
-        do {
-            try await changed.handle(moveRequest)
-            preconditionFailure("Clipboard change during confirmation was ignored")
-        } catch CocoaError.fileReadUnknown {}
+                precondition(plan.clipboardChangeCount == board.changeCount)
+                moved.append(plan)
+            })
+        let unsigned = try FinderActionRequest(action: .move, files: [root], clipboardChangeCount: board.changeCount)
+        let wrongKey = try unsigned.signed(using: SymmetricKey(size: .bits256))
+        for forged in [unsigned, wrongKey] {
+            do {
+                try await mover.handle(FinderActionRequest(url: forged.url()))
+                preconditionFailure("An unauthenticated move was dispatched")
+            } catch FinderActionRequest.RequestError.invalidRoute {}
+        }
+        precondition(moved.isEmpty && !lifecycle.isActive(.finderAction))
+        try await mover.handle(FinderActionRequest(url: moveRequest.url()))
+        precondition(moved.count == 1, "Move must dispatch directly without confirmation")
+        board.clearContents()
+        board.setString("changed", forType: .string)
         do {
             try await mover.handle(moveRequest)
             preconditionFailure("Stale menu request was accepted")
-        } catch CocoaError.fileReadUnknown {}
-        precondition(confirmations == 1 && moved.count == 1 && !lifecycle.isActive(.finderAction))
+        } catch FinderMoveError.clipboardChanged {}
+        precondition(moved.count == 1 && !lifecycle.isActive(.finderAction))
         let movingLifecycle = ApplicationLifecycle()
         board.clearContents()
         board.writeObjects([source as NSURL])
         let pendingRequest = try FinderActionRequest(
-            action: .move, files: [root], clipboardChangeCount: board.changeCount)
+            action: .move, files: [root], clipboardChangeCount: board.changeCount
+        ).signed(using: moveKey)
         var finishMove: CheckedContinuation<Void, Never>?
         var terminationReady = false
         movingLifecycle.onReadyToTerminate = { terminationReady = true }
         let pendingMover = FinderActionService(
             lifecycle: movingLifecycle, configuration: { enabledConfiguration }, pasteboard: board,
-            confirmMove: { _ in true },
+            moveKey: { moveKey },
             move: { _ in await withCheckedContinuation { finishMove = $0 } })
         let pending = Task { try await pendingMover.handle(pendingRequest) }
         while finishMove == nil { await Task.yield() }
@@ -166,7 +178,7 @@ enum FinderActionCheck {
             preconditionFailure("Action started while quitting")
         } catch CocoaError.userCancelled {}
         print(
-            "Finder actions, switches, move confirmation, clipboard changes and quit admission verified without launching Terminal or moving files."
+            "Finder actions, switches, direct move dispatch, clipboard changes and quit admission verified without launching Terminal or moving files."
         )
     }
 }

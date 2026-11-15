@@ -39,7 +39,7 @@
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Buckle uses System Events to open the native system memory window you requested.</string>
+	<string>Buckle controls Finder to open the destination folder and System Events to trigger native file moves and the system memory window you request.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

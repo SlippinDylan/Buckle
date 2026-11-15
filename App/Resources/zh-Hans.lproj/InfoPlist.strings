@@ -1,1 +1,1 @@
-"NSAppleEventsUsageDescription" = "Buckle 使用 System Events 打开你请求的系统原生内存窗口。";
+"NSAppleEventsUsageDescription" = "Buckle 控制访达打开目标文件夹，并通过 System Events 触发你请求的原生文件移动和系统内存窗口。";

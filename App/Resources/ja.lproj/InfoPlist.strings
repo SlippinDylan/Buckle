@@ -1,1 +1,1 @@
-"NSAppleEventsUsageDescription" = "Buckle は要求されたシステム標準のメモリウインドウを System Events で開きます。";
+"NSAppleEventsUsageDescription" = "Buckle は Finder で移動先フォルダを開き、System Events を通じて要求された標準のファイル移動とシステムメモリウインドウを実行します。";

@@ -5,6 +5,17 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"9C42663100A14DDD97C55A01" = {
+            "isa" = "PBXFileReference";
+            "path" = "App/AutomationPermission.swift";
+            "lastKnownFileType" = "sourcecode.swift";
+            "sourceTree" = "<group>";
+        };
+        "9C42663100A14DDD97C55A02" = {
+            "isa" = "PBXBuildFile";
+            "fileRef" = "9C42663100A14DDD97C55A01";
+        };
+
 		"8E003F43B26D4B35A18F59D3" = {
 			"isa" = "PBXFileReference";
 			"path" = "App/CommandRunner.swift";
@@ -168,6 +179,7 @@
 				"221AA94EA7E3440EAC036D2F",
 				"577918005B074E19911F293C",
 				"EC3FA22F5D56417692C8689E",
+                "9C42663100A14DDD97C55A01",
 				"59A77260BE624F798AE2AF9E",
 				"6604C162D604803D00293FC2",
 				"317B85B355CB4A74889D2F87",
@@ -809,6 +821,7 @@
 				"002D9F3401934C08B6BF57AF",
 				"D426C11351F24A05B815A63B",
 				"81B7A7CC31AE4427B5EA0C2F",
+                "9C42663100A14DDD97C55A02",
 				"B16933114C1B431A857FF677",
 				"269802EC8EC52521172AEA1F",
 				"D2C9B65B66187C442A1C96D5",

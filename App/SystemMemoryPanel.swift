@@ -398,20 +398,7 @@ private actor MemoryPanelTrigger {
     }
 
     func automationPermissionIssue(requestPermission: Bool) throws -> MemoryPanelPermissionIssue? {
-        var target = AEAddressDesc()
-        let identifier = "com.apple.systemevents"
-        let result = identifier.withCString {
-            AECreateDesc(DescType(typeApplicationBundleID), $0, identifier.utf8.count, &target)
-        }
-        guard result == noErr else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(result)) }
-        defer { AEDisposeDesc(&target) }
-        let permission = AEDeterminePermissionToAutomateTarget(
-            &target, AEEventClass(typeWildCard), AEEventID(typeWildCard), requestPermission)
-        switch permission {
-        case noErr: return nil
-        case OSStatus(errAEEventNotPermitted), OSStatus(errAEEventWouldRequireUserConsent): return .automation
-        default: throw NSError(domain: NSOSStatusErrorDomain, code: Int(permission))
-        }
+        try AutomationTarget.systemEvents.permissionGranted(requestPermission: requestPermission) ? nil : .automation
     }
 
     func trigger() throws {

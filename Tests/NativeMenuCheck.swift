@@ -21,6 +21,7 @@ enum NativeMenuCheck {
         let finder = FinderExtensionController(configurationStore: { store })
         try verifyUpdateStartup(in: directory.appendingPathComponent("update-startup.bundle"))
         try await verifyFinderSaveFailure(in: directory.appendingPathComponent("read-only"))
+        try await verifyMoveKeyIsolation(in: directory.appendingPathComponent("damaged-move-key"))
         await verifySettingsRows(finder: FinderExtensionController(configurationStore: { store }))
         var openedCategories: [ApplicationSettingsViewController.Category?] = []
         var memoryRequests = 0
@@ -179,6 +180,42 @@ enum NativeMenuCheck {
         precondition(finder.configuration == saved)
     }
 
+    @MainActor private static func verifyMoveKeyIsolation(in directory: URL) async throws {
+        let store = FinderConfigurationStore(directory: directory)
+        try store.save(FinderConfiguration(airDropEnabled: true, copyPathEnabled: true, moveEnabled: true))
+        let keyFile = directory.appendingPathComponent("move-request.key")
+        try Data().write(to: keyFile)
+        let finder = FinderExtensionController(configurationStore: { store })
+        await finder.refresh()
+        precondition(finder.configuration != nil, "A damaged move key must not discard menu configuration")
+        precondition(finder.moveAuthorizationError != nil)
+        if case .failed = finder.state { preconditionFailure("A move key failure must not replace extension state") }
+        try finder.setEnabled(false, for: .copyPath)
+        try finder.setEnabled(false, for: .airDrop)
+        try finder.setEnabled(false, for: .move)
+        let disabled = try store.load()
+        precondition(!disabled.moveEnabled && !disabled.copyPathEnabled && !disabled.airDropEnabled)
+        precondition(finder.moveAuthorizationError == nil)
+        do {
+            try finder.setEnabled(true, for: .move)
+            preconditionFailure("A damaged key must still prevent enabling moves")
+        } catch CocoaError.fileReadCorruptFile {}
+        let afterFailure = try store.load()
+        precondition(afterFailure == disabled && finder.configuration == disabled)
+        try finder.setEnabled(true, for: .terminal)
+        await finder.restoreConfiguration()
+        let restored = try store.load()
+        precondition(!restored.terminalEnabled && !restored.moveEnabled)
+        precondition(finder.configuration != nil, "Restoring menu defaults must not depend on the move key")
+        precondition(finder.moveAuthorizationError == nil)
+        // Missing keys are prepared when moving is enabled; unrelated switches must not create one.
+        try FileManager.default.removeItem(at: keyFile)
+        try finder.setEnabled(true, for: .terminal)
+        precondition(!FileManager.default.fileExists(atPath: keyFile.path))
+        try finder.setEnabled(true, for: .move)
+        _ = try store.loadMoveKey()
+    }
+
     @MainActor private static func verifySettingsRows(
         finder: FinderExtensionController
     ) async {
@@ -192,9 +229,16 @@ enum NativeMenuCheck {
         guard let defaults = UserDefaults(suiteName: suite) else { preconditionFailure("Missing test defaults") }
         defer { defaults.removePersistentDomain(forName: suite) }
         let preferences = MouseResetPreferences(defaults: defaults)
+        let finderAnswer = MenuCheckFinderPermission()
+        let finderAutomation = FinderAutomationPermission(query: { request in
+            finderAnswer.requests.append(request)
+            return finderAnswer.granted
+        })
+        await finderAutomation.refresh()
         let settings = ApplicationSettingsViewController(
             memoryPanel: panel, finder: finder,
-            updates: ApplicationUpdateController(), lifecycle: lifecycle, mouseResetPreferences: preferences)
+            updates: ApplicationUpdateController(), lifecycle: lifecycle,
+            finderAutomation: finderAutomation, mouseResetPreferences: preferences)
         settings.view.setFrameSize(NSSize(width: 400, height: 450))
         settings.view.layoutSubtreeIfNeeded()
         let generalButtons = descendants(of: settings.view).compactMap { $0 as? NSButton }
@@ -253,12 +297,44 @@ enum NativeMenuCheck {
             .filter { $0.textColor == .systemGreen }
         precondition(grantedLabels.count == 2, "Granted permissions must use green status labels")
         precondition(grantedLabels.allSatisfy { !$0.stringValue.isEmpty })
+        precondition(
+            permissionButtons.contains { $0.action == NSSelectorFromString("openFinderAutomation") },
+            "Denied Finder automation needs its own grant action even when System Events is authorized")
+        finderAnswer.granted = true
+        await finderAutomation.refresh()
+        settings.refresh()
+        precondition(
+            descendants(of: settings.view).compactMap { $0 as? NSTextField }
+                .filter { $0.textColor == .systemGreen }.count == 3)
+        finderAnswer.granted = false
+        await finderAutomation.refresh()
+        settings.refresh()
 
         let checks = operations.requests.count
+        let finderChecks = finderAnswer.requests.count
         settings.refreshPermissionStatus()
         while operations.requests.count == checks { await Task.yield() }
         while panel.isCheckingPermissions { await Task.yield() }
+        while finderAnswer.requests.count == finderChecks { await Task.yield() }
+        while finderAutomation.state == .checking { await Task.yield() }
+        precondition(finderAutomation.state == .required)
+        precondition(finderAnswer.requests.allSatisfy { !$0 }, "Silent Finder checks requested consent")
         precondition(operations.requests.allSatisfy { !$0 }, "Automatic checks must not request authorization")
+        // Finder error prompts must reuse the Settings authorization actions, even on another category.
+        finderAnswer.granted = true
+        let finderRequests = finderAnswer.requests.count
+        settings.requestPermission(.automation(.finder), from: NSView())
+        while finderAnswer.requests.count == finderRequests { await Task.yield() }
+        while lifecycle.isActive(.finderPermissions) { await Task.yield() }
+        precondition(finderAnswer.requests.last == true)
+        precondition(finderAutomation.state == .granted)
+        let automationRequests = operations.requests.count
+        settings.requestPermission(.automation(.systemEvents), from: NSView())
+        while operations.requests.count == automationRequests { await Task.yield() }
+        while panel.isCheckingPermissions { await Task.yield() }
+        precondition(operations.requests.last == true)
+        finderAnswer.granted = false
+        await finderAutomation.refresh()
         operations.accessibilityGranted = false
         await panel.refreshPermissions()
         settings.refresh()
@@ -316,4 +392,10 @@ private final class MenuCheckPanelOperations: SystemMemoryPanelOperations {
         if suspends { await withCheckedContinuation { continuation = $0 } }
         return MemoryPanelPermissions(accessibilityGranted: accessibilityGranted, automationGranted: true)
     }
+}
+
+@MainActor
+private final class MenuCheckFinderPermission {
+    var granted = false
+    var requests: [Bool] = []
 }

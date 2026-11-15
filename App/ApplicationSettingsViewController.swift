@@ -34,6 +34,7 @@ final class ApplicationSettingsViewController: NSViewController {
 
     private let lifecycle: ApplicationLifecycle
     private let memoryPanel: SystemMemoryPanel
+    private let finderAutomation: FinderAutomationPermission
     private let finder: FinderExtensionController
     private let languagePreferences: ApplicationLanguagePreferences
     private let mouseResetPreferences: MouseResetPreferences
@@ -49,11 +50,13 @@ final class ApplicationSettingsViewController: NSViewController {
         updates: ApplicationUpdateController, lifecycle: ApplicationLifecycle,
         languagePreferences: ApplicationLanguagePreferences = ApplicationLanguagePreferences(),
         permissionGuidance: PermissionGuidance = PermissionGuidance(),
+        finderAutomation: FinderAutomationPermission = FinderAutomationPermission(),
         mouseResetPreferences: MouseResetPreferences = MouseResetPreferences()
     ) {
         self.lifecycle = lifecycle
         self.memoryPanel = memoryPanel
         self.finder = finder
+        self.finderAutomation = finderAutomation
         self.updates = updates
         self.languagePreferences = languagePreferences
         self.mouseResetPreferences = mouseResetPreferences
@@ -123,7 +126,9 @@ final class ApplicationSettingsViewController: NSViewController {
             _ = memoryPanel.isOpening
             _ = memoryPanel.isCheckingPermissions
             _ = memoryPanel.automationGranted
+            _ = finderAutomation.state
             _ = finder.state
+            _ = finder.moveAuthorizationError
             _ = finder.isBusy
             _ = updates.canCheck
             _ = updates.automaticChecks
@@ -356,17 +361,32 @@ final class ApplicationSettingsViewController: NSViewController {
                     permissionGuidance.accessibilityTitle,
                     control: permissionControl(status: accessibilityStatus, action: #selector(openAccessibility(_:)))),
                 settingRow(
-                    localized("permissions.automation.title"),
+                    localized("permissions.systemEvents.title"),
                     control: permissionControl(status: automationState, action: #selector(openAutomation))),
+                settingRow(
+                    localized("permissions.finderAutomation.title"),
+                    control: permissionControl(status: finderAutomationStatus, action: #selector(openFinderAutomation))),
                 settingRow(localized("settings.finder.actions"), control: finderPermissionControl()),
             ])
         if let error = memoryPanel.error ?? memoryPanel.permissionError { addDescription(error) }
+        if case .failed(let message) = finderAutomation.state { addDescription(message) }
+        if let message = finder.moveAuthorizationError { addDescription(message) }
         switch finder.state {
         case .missing: addDescription(localized("finder.install.help"))
         case .invalidConfiguration(let message):
             addDescription(localized("finder.configuration.invalid") + "\n" + message)
         case .failed(let message): addDescription(message)
         case .checking, .enabled, .disabled, .unregistered: break
+        }
+    }
+
+    private var finderAutomationStatus: PermissionGuidance.Status {
+        switch finderAutomation.state {
+        case .unchecked: .unknown
+        case .checking: .checking
+        case .granted: .granted
+        case .required: .notGranted
+        case .failed: .unknown
         }
     }
 
@@ -418,6 +438,8 @@ final class ApplicationSettingsViewController: NSViewController {
         guard selectedCategory == .permissions, !lifecycle.terminationRequested else { return }
         Task {
             await memoryPanel.refreshPermissions()
+            guard !lifecycle.terminationRequested else { return }
+            await finderAutomation.refresh()
             guard !lifecycle.terminationRequested else { return }
             await finder.refresh()
         }
@@ -570,6 +592,15 @@ final class ApplicationSettingsViewController: NSViewController {
     @objc private func approveLogin() { SMAppService.openSystemSettingsLoginItems() }
     @objc private func changeAutomaticUpdates(_ sender: NSSwitch) { updates.setAutomaticChecks(sender.state == .on) }
     @objc private func checkUpdates() { updates.checkForUpdates() }
+    func requestPermission(_ requirement: PermissionRequirement, from view: NSView) {
+        guard !lifecycle.terminationRequested else { return }
+        switch requirement {
+        case .accessibility: permissionGuidance.showAccessibility(from: view)
+        case .automation(.finder): openFinderAutomation()
+        case .automation(.systemEvents): openAutomation()
+        }
+    }
+
     @objc private func openAccessibility(_ sender: NSButton) {
         guard !lifecycle.terminationRequested else { return }
         permissionGuidance.showAccessibility(from: sender)
@@ -589,6 +620,22 @@ final class ApplicationSettingsViewController: NSViewController {
             }
         }
     }
+    @objc private func openFinderAutomation() {
+        permissionGuidance.close()
+        Task {
+            guard lifecycle.begin(.finderPermissions) else { return }
+            defer { lifecycle.end(.finderPermissions) }
+            do {
+                try await finderAutomation.request()
+                guard !lifecycle.terminationRequested else { return }
+                if finderAutomation.state == .required { permissionGuidance.showAutomation() }
+            } catch {
+                guard lifecycle.shouldPresentUserActionError(error) else { return }
+                present(error)
+            }
+        }
+    }
+
     @objc private func showApplication() {
         guard !lifecycle.terminationRequested else { return }
         finder.showApplication()
@@ -625,8 +672,14 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private func present(_ error: Error) {
-        guard let window = view.window else { return }
-        NSAlert(error: error).beginSheetModal(for: window)
+        let alert = NSAlert(error: error)
+        if let window = view.window, window.isVisible {
+            alert.beginSheetModal(for: window)
+        } else {
+            // Finder's authorization entry can run without the Settings window being open.
+            NSApp.activate()
+            alert.runModal()
+        }
     }
 }
 

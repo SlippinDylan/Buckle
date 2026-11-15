@@ -92,14 +92,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 guard lifecycle.shouldPresentUserActionError(error) else { return }
                 NSApp.activate()
-                let alert: NSAlert
-                if error is FinderActionRequest.RequestError {
-                    alert = NSAlert()
-                    alert.messageText = localized("finder.invalid.request")
-                } else {
-                    alert = NSAlert(error: error)
+                let alert = FinderActionAlert.make(error)
+                if alert.runModal() == .alertFirstButtonReturn,
+                    let requirement = error as? PermissionRequirement,
+                    !lifecycle.terminationRequested
+                {
+                    settings.requestPermission(requirement, from: alert.buttons[0])
                 }
-                alert.runModal()
             }
         }
     }

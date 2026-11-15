@@ -1,1 +1,1 @@
-"NSAppleEventsUsageDescription" = "Buckle 使用 System Events 開啟你要求的系統原生記憶體視窗。";
+"NSAppleEventsUsageDescription" = "Buckle 控制 Finder 開啟目標檔案夾，並透過 System Events 觸發你要求的原生檔案搬移和系統記憶體視窗。";

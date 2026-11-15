@@ -12,6 +12,7 @@ final class FinderExtensionController {
 
     private(set) var state: State = .checking
     private(set) var configuration: FinderConfiguration?
+    private(set) var moveAuthorizationError: String?
     private(set) var isBusy = false
     @ObservationIgnored private let configurationStore: () throws -> FinderConfigurationStore
     @ObservationIgnored private let language = Bundle.main.preferredLocalizations.first
@@ -29,6 +30,7 @@ final class FinderExtensionController {
         isBusy = true
         defer { isBusy = false }
         configuration = nil
+        moveAuthorizationError = nil
         do {
             do {
                 let store = try configurationStore()
@@ -39,6 +41,12 @@ final class FinderExtensionController {
                     try store.save(loaded)
                 }
                 configuration = loaded
+                if loaded.moveEnabled {
+                    do { try store.prepareMoveKey() } catch {
+                        moveAuthorizationError = localizedFormat(
+                            "finder.move.authorization.failed", error.localizedDescription)
+                    }
+                }
             } catch let error as DecodingError {
                 state = .invalidConfiguration(error.localizedDescription)
                 return
@@ -60,10 +68,13 @@ final class FinderExtensionController {
     }
 
     func setEnabled(_ enabled: Bool, for action: FinderAction) throws {
-        var updated = try configurationStore().load()
+        let store = try configurationStore()
+        var updated = try store.load()
+        if action == .move && enabled { try store.prepareMoveKey() }
         updated.setEnabled(enabled, for: action)
-        try configurationStore().save(updated)
+        try store.save(updated)
         configuration = updated
+        if action == .move { moveAuthorizationError = nil }
     }
 
     func enable() async {
