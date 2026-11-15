@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-15
+
 ### Fixed
 - Finder context-menu actions now retain their request snapshots when Finder replaces menu items with XPC proxies and publish concurrent menu snapshots atomically.
 - AirDrop requests file access before checking availability, so protected-folder access errors are not mistaken for an unsupported sharing service.
