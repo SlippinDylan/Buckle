@@ -48,6 +48,8 @@ import Testing
         "buckle://finder/airdrop?file=file://remote/tmp/a",
         "buckle://finder/airdrop?file=file:///tmp/a&command=anything",
         "buckle://finder/airdrop?file=file:///tmp/a#fragment",
+        "buckle://finder/move?file=file:///tmp/a&clipboard=1&signature=invalid",
+        "buckle://finder/move?file=file:///tmp/a&clipboard=1&signature=&signature=",
     ]
     for route in routes {
         let url = try #require(URL(string: route))
@@ -125,4 +127,31 @@ import Testing
     #expect(throws: FinderActionRequest.RequestError.self) {
         try FinderActionRequest(action: .move, files: [destination])
     }
+}
+
+@Test func finderMoveSignaturesBindTheDestinationAndClipboardVersion() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { do { try FileManager.default.removeItem(at: directory) } catch { Issue.record(error) } }
+    let store = FinderConfigurationStore(directory: directory)
+    try store.prepareMoveKey()
+    let key = try store.loadMoveKey()
+    let destination = URL(fileURLWithPath: "/tmp/中文 '$(literal); #?")
+    let unsigned = try FinderActionRequest(action: .move, files: [destination], clipboardChangeCount: 123)
+    #expect(try !unsigned.authenticates(using: key))
+    let signed = try unsigned.signed(using: key)
+    #expect(try FinderActionRequest(url: signed.url()).authenticates(using: key))
+    let changedTarget = try FinderActionRequest(
+        action: .move, files: [URL(fileURLWithPath: "/tmp/other")], clipboardChangeCount: 123,
+        signature: signed.signature)
+    let changedClipboard = try FinderActionRequest(
+        action: .move, files: [destination], clipboardChangeCount: 124, signature: signed.signature)
+    #expect(try !changedTarget.authenticates(using: key))
+    #expect(try !changedClipboard.authenticates(using: key))
+    try store.prepareMoveKey()
+    #expect(try signed.authenticates(using: store.loadMoveKey()), "Reopening Buckle must preserve the key")
+    let keyFile = directory.appendingPathComponent("move-request.key")
+    let permissions = try FileManager.default.attributesOfItem(atPath: keyFile.path)[.posixPermissions] as? Int
+    #expect(permissions == 0o600)
+    try Data("broken".utf8).write(to: keyFile)
+    #expect(throws: CocoaError.self) { try store.prepareMoveKey() }
 }
