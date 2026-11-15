@@ -145,7 +145,7 @@ class PackagingCIGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / 'outputs'
             with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'owner/Example', 'GITHUB_SHA': 'default',
-                                          'RELEASE_SHA': 'source', 'GITHUB_OUTPUT': str(output)}), \
+                                          'RELEASE_SHA': 'source', 'GITHUB_OUTPUT': str(output)}, clear=True), \
                  patch.object(required_ci, 'gh', side_effect=[[self.run_data(sha='source')], {'run_attempt': 2}, body]) as gh:
                 required_ci.main(allow_skipped=True)
             self.assertEqual(output.read_text(), 'build=false\n')
@@ -161,7 +161,7 @@ class PackagingCIGateTests(unittest.TestCase):
                 required_ci.check_jobs({'total_count': len(jobs), 'jobs': jobs})
         with self.assertRaises(ValueError):
             required_ci.check_jobs({'total_count': 101, 'jobs': [{'name': 'Build Debug app', 'conclusion': 'success'}]})
-        with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'owner/Example', 'GITHUB_SHA': 'current'}), \
+        with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'owner/Example', 'GITHUB_SHA': 'current'}, clear=True), \
              patch.object(required_ci, 'gh', side_effect=[[self.run_data()], {'run_attempt': 3},
                            {'total_count': 1, 'jobs': [{'name': 'Build Debug app', 'conclusion': 'success'}]}]) as gh:
             required_ci.main()
