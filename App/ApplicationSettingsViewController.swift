@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 @MainActor
 final class ApplicationSettingsViewController: NSViewController {
     enum Category: Int, CaseIterable {
-        case general, mouseReset, permissions, about
+        case general, permissions, mouseReset, about
 
         var title: String {
             switch self {

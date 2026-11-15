@@ -238,7 +238,7 @@ enum NativeMenuCheck {
         finder: FinderExtensionController
     ) async {
         precondition(
-            ApplicationSettingsViewController.Category.allCases == [.general, .mouseReset, .permissions, .about])
+            ApplicationSettingsViewController.Category.allCases == [.general, .permissions, .mouseReset, .about])
         let lifecycle = ApplicationLifecycle()
         let operations = MenuCheckPanelOperations()
         let panel = SystemMemoryPanel(operations: operations, lifecycle: lifecycle)

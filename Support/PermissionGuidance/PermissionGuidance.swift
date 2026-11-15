@@ -1,4 +1,6 @@
 import AppKit
+import ApplicationServices
+import Combine
 import PermissionFlow
 import SystemSettingsKit
 
@@ -6,8 +8,11 @@ import SystemSettingsKit
 public final class PermissionGuidance {
     public enum Status { case checking, granted, notGranted, unknown }
 
-    private let controller: PermissionFlowController
+    private let authorizeAccessibility: (CGRect?) -> Void
+    private let closePanel: () -> Void
+    private let accessibilityGranted: () -> Bool
     private let localeIdentifier: String
+    private var observers: Set<AnyCancellable> = []
 
     // Register the SwiftPM resource bundle before upstream caches its lookup. The native test
     // runner lives in Xcode's toolchain, while resources sit beside the loaded test bundle.
@@ -26,14 +31,28 @@ public final class PermissionGuidance {
         return nil
     }()
 
-    public init(
+    public convenience init(
         appURL: URL = Bundle.main.bundleURL, localeIdentifier: String? = Bundle.main.preferredLocalizations.first
     ) {
         _ = Self.registeredResources
-        self.localeIdentifier = localeIdentifier ?? "en"
-        controller = PermissionFlow.makeController(
+        let controller = PermissionFlow.makeController(
             configuration: .init(
-                requiredAppURLs: [appURL], promptForAccessibilityTrust: false, localeIdentifier: self.localeIdentifier))
+                requiredAppURLs: [appURL], promptForAccessibilityTrust: false,
+                localeIdentifier: localeIdentifier ?? "en"))
+        self.init(
+            localeIdentifier: localeIdentifier ?? "en",
+            authorizeAccessibility: { controller.authorize(pane: .accessibility, sourceFrameInScreen: $0) },
+            closePanel: { controller.closePanel() }, accessibilityGranted: { AXIsProcessTrusted() })
+    }
+
+    init(
+        localeIdentifier: String = "en", authorizeAccessibility: @escaping (CGRect?) -> Void,
+        closePanel: @escaping () -> Void, accessibilityGranted: @escaping () -> Bool
+    ) {
+        self.localeIdentifier = localeIdentifier
+        self.authorizeAccessibility = authorizeAccessibility
+        self.closePanel = closePanel
+        self.accessibilityGranted = accessibilityGranted
     }
 
     public var accessibilityTitle: String {
@@ -59,8 +78,31 @@ public final class PermissionGuidance {
     }
 
     public func showAccessibility(from view: NSView) {
+        close()
         let sourceFrame = view.window.map { $0.convertToScreen(view.convert(view.bounds, to: nil)) }
-        controller.authorize(pane: .accessibility, sourceFrameInScreen: sourceFrame)
+        authorizeAccessibility(sourceFrame)
+        guard !accessibilityGranted() else {
+            close()
+            return
+        }
+
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in self?.close() }
+            .store(in: &observers)
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)
+            .compactMap { $0.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication }
+            .sink { [weak self] in self?.applicationTerminated(bundleIdentifier: $0.bundleIdentifier) }
+            .store(in: &observers)
+        Timer.publish(every: 0.5, tolerance: 0.1, on: .main, in: .common).autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                if self.accessibilityGranted() { self.close() }
+            }
+            .store(in: &observers)
+    }
+
+    func applicationTerminated(bundleIdentifier: String?) {
+        if bundleIdentifier == "com.apple.systempreferences" { close() }
     }
 
     public func showAutomation() {
@@ -69,5 +111,8 @@ public final class PermissionGuidance {
         SystemSettings.open(.privacy(anchor: .privacyAutomation))
     }
 
-    public func close() { controller.closePanel() }
+    public func close() {
+        observers.removeAll()
+        closePanel()
+    }
 }

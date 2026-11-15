@@ -1,6 +1,7 @@
 import AppKit
-import BucklePermissionSupport
 import Testing
+
+@testable import BucklePermissionSupport
 
 @Test @MainActor func permissionGuidanceUsesUpstreamTranslationsForAllAppLanguages() throws {
     let grantedTitles = [
@@ -43,4 +44,76 @@ import Testing
         #expect(button.contentTintColor == .systemBlue)
     }
     guidance.close()
+}
+
+@Suite(.serialized) struct AccessibilityGuidanceLifecycleTests {
+    @Test @MainActor func accessibilityGuidanceDetectsAuthorizationThroughItsTimer() async throws {
+        var granted = false
+        var checks = 0
+        var opens = 0
+        var closes = 0
+        let guidance = PermissionGuidance(
+            authorizeAccessibility: { _ in opens += 1 }, closePanel: { closes += 1 },
+            accessibilityGranted: {
+                checks += 1
+                return granted
+            })
+        defer { guidance.close() }
+        guidance.showAccessibility(from: NSView())
+        #expect(opens == 1)
+        let initialCloses = closes
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(checks > 1)
+        #expect(closes == initialCloses)
+        granted = true
+        for _ in 0..<20 {
+            if closes > initialCloses { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(closes == initialCloses + 1)
+        let completedChecks = checks
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(checks == completedChecks)
+        #expect(closes == initialCloses + 1)
+    }
+
+    @Test @MainActor func accessibilityGuidanceStopsWhenSettingsExitsWithoutActivatingBuckle() async throws {
+        var checks = 0
+        var closes = 0
+        let guidance = PermissionGuidance(
+            authorizeAccessibility: { _ in }, closePanel: { closes += 1 },
+            accessibilityGranted: {
+                checks += 1
+                return false
+            })
+        defer { guidance.close() }
+        guidance.showAccessibility(from: NSView())
+        let initialCloses = closes
+        guidance.applicationTerminated(bundleIdentifier: "com.apple.finder")
+        #expect(closes == initialCloses)
+        guidance.applicationTerminated(bundleIdentifier: "com.apple.systempreferences")
+        #expect(closes == initialCloses + 1)
+        let completedChecks = checks
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(checks == completedChecks)
+    }
+
+    @Test @MainActor func accessibilityGuidanceStopsOnReturnAndCanReopen() {
+        var opens = 0
+        var closes = 0
+        let guidance = PermissionGuidance(
+            authorizeAccessibility: { _ in opens += 1 }, closePanel: { closes += 1 }, accessibilityGranted: { false })
+        defer { guidance.close() }
+        guidance.showAccessibility(from: NSView())
+        let initialCloses = closes
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+        #expect(closes == initialCloses + 1)
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+        #expect(closes == initialCloses + 1)
+        guidance.showAccessibility(from: NSView())
+        #expect(opens == 2)
+        let reopenedCloses = closes
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+        #expect(closes == reopenedCloses + 1)
+    }
 }

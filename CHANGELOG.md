@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-15
+
+### Changed
+- Settings tabs now appear in General, Permissions, Mouse Reset, and About order.
+
+### Fixed
+- Accessibility guidance now closes automatically when access is granted and stops checking when returning to Buckle or System Settings exits.
+
 ## [0.2.2] - 2026-11-15
 
 ### Fixed
