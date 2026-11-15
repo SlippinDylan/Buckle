@@ -2,7 +2,18 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-15
+
+### Changed
+- CI now classifies changes and keeps test packaging and public releases as separate, manually requested workflows; ordinary pushes no longer publish installers.
+- Test installers disable updates, and DMGs now use a drag-to-install layout with version, destination, and overwrite checks.
+- Distribution synchronization now prepares the Buckle Homebrew Cask and Tap listing from the published installer alongside its signed update feed.
+
 ### Fixed
+- About now explains unavailable updates when configuration is missing or initialization fails.
+- Release checks reject reused versions or build numbers and mismatched update-signing keys before publishing.
+- Activity notifications now cover PR reviews and code comments, link PR conversation comments correctly, and report actual packaging and publishing job results.
+- Localization and release-note checks now validate more format arguments, accept Breaking Changes, and reject unfinished release notes.
 - The Settings window no longer floats above Sparkle update windows.
 - Finder context-menu actions no longer crash the extension when Finder invokes them on a background XPC queue, which prevented AirDrop from opening and removed the menu entry afterward.
 
