@@ -138,7 +138,6 @@
 "onboarding.start" = "Start Setup";
 "onboarding.back" = "Back";
 "onboarding.finish" = "Start Using Buckle";
-"onboarding.reopen" = "Show Setup Guide…";
 "onboarding.updates.disabled" = "Update checks are unavailable in this build.";
 "login.pending" = "Waiting for approval in System Settings.";
 "login.unavailable" = "The login service is unavailable. Check that Buckle is installed correctly.";

@@ -44,7 +44,6 @@ final class ApplicationSettingsViewController: NSViewController {
     private let contentStack = NSStackView()
     private let mouseResetWaitLabel = NSTextField(labelWithString: "")
     var onChange: (() -> Void)?
-    var openOnboarding: (() -> Void)?
     private var loginStatus = SMAppService.mainApp.status
     private(set) var selectedCategory = Category.general
 
@@ -192,11 +191,17 @@ final class ApplicationSettingsViewController: NSViewController {
             waitControl.orientation = .horizontal
             waitControl.alignment = .centerY
             waitControl.spacing = 8
+            let waitHelp = description(localized("mouse.settings.wait.help"))
+            waitHelp.textColor = .secondaryLabelColor
+            let waitHelpRow = NSStackView(views: [waitHelp])
+            waitHelpRow.orientation = .vertical
+            waitHelpRow.alignment = .width
+            waitHelpRow.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 6, right: 0)
             addSection(
                 localized("mouse.settings.timing"),
                 rows: [
                     settingRow(localized("mouse.settings.wait"), control: waitControl),
-                    description(localized("mouse.settings.wait.help")),
+                    waitHelpRow,
                 ])
             let add = NSButton(
                 title: localized("mouse.settings.add"), target: self, action: #selector(addMouseResetApplications))
@@ -323,7 +328,6 @@ final class ApplicationSettingsViewController: NSViewController {
         addDescription(localized("language.restart.help"))
         addSection(localized("settings.startup"), rows: startupRows())
         addSection(localized("settings.updates"), rows: updateRows())
-        contentStack.addArrangedSubview(button(localized("onboarding.reopen"), action: #selector(showOnboarding)))
     }
 
     private func startupRows() -> [NSView] {
@@ -414,11 +418,6 @@ final class ApplicationSettingsViewController: NSViewController {
             refresh()
             present(error, in: sourceWindow)
         }
-    }
-
-    @objc private func showOnboarding() {
-        guard !lifecycle.terminationRequested else { return }
-        openOnboarding?()
     }
 
     private func permissionRows() -> [NSView] {

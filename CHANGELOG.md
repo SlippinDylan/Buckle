@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-15
+
+### Changed
+- Removed the setup guide reopen button from General settings; first-run setup still appears once.
+- Added spacing above the mouse reset wait description and styled it as secondary text.
+
 ## [0.3.0] - 2026-11-15
 
 ### Added

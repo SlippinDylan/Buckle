@@ -371,13 +371,6 @@ enum NativeMenuCheck {
             precondition(
                 abs(control.frame.maxX - row.bounds.maxX) < 0.5, "Settings switches must align to the trailing edge")
         }
-        var reopenedGuides = 0
-        settings.openOnboarding = { reopenedGuides += 1 }
-        guard let reopen = generalButtons.first(where: { $0.title == localized("onboarding.reopen") }) else {
-            preconditionFailure("General settings must expose the setup guide")
-        }
-        reopen.performClick(nil)
-        precondition(reopenedGuides == 1)
         await finder.refresh()
         let finderRows = settings.onboardingRows(for: .finder)
         let finderViews = finderRows.flatMap { [$0] + descendants(of: $0) }

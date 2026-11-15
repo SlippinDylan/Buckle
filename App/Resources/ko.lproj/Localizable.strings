@@ -138,7 +138,6 @@
 "onboarding.start" = "설정 시작";
 "onboarding.back" = "뒤로";
 "onboarding.finish" = "Buckle 사용 시작";
-"onboarding.reopen" = "설정 가이드 보기…";
 "onboarding.updates.disabled" = "이 빌드에서는 업데이트를 확인할 수 없습니다.";
 "login.pending" = "시스템 설정에서 승인을 기다리고 있습니다.";
 "login.unavailable" = "로그인 서비스를 사용할 수 없습니다. Buckle이 올바르게 설치되었는지 확인하세요.";

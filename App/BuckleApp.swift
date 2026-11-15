@@ -57,7 +57,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingState.prepareLaunch(
             isDefaultLaunch: notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool == true,
             isLoginItem: launchedAsLoginItem)
-        settings.openOnboarding = { [weak self] in self?.showOnboarding() }
         settings.onChange = { [weak self] in self?.onboardingWindow?.refresh() }
         updates.start()
         lifecycle.onReadyToTerminate = { [weak self] in

@@ -138,7 +138,6 @@
 "onboarding.start" = "Einrichtung starten";
 "onboarding.back" = "Zurück";
 "onboarding.finish" = "Buckle verwenden";
-"onboarding.reopen" = "Einrichtungsassistenten anzeigen …";
 "onboarding.updates.disabled" = "In diesem Build ist die Suche nach Updates nicht verfügbar.";
 "login.pending" = "Wartet auf Genehmigung in den Systemeinstellungen.";
 "login.unavailable" = "Der Anmeldedienst ist nicht verfügbar. Prüfe, ob Buckle richtig installiert ist.";

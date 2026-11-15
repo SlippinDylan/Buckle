@@ -66,11 +66,6 @@ final class ApplicationSettingsWindowController: NSWindowController, NSToolbarDe
         set { settingsViewController.onChange = newValue }
     }
 
-    var openOnboarding: (() -> Void)? {
-        get { settingsViewController.openOnboarding }
-        set { settingsViewController.openOnboarding = newValue }
-    }
-
     func onboardingRows(for step: OnboardingStep) -> [NSView] {
         settingsViewController.loadViewIfNeeded()
         return settingsViewController.onboardingRows(for: step)

@@ -138,7 +138,6 @@
 "onboarding.start" = "設定を始める";
 "onboarding.back" = "戻る";
 "onboarding.finish" = "Buckle を使い始める";
-"onboarding.reopen" = "設定ガイドを表示…";
 "onboarding.updates.disabled" = "このビルドではアップデートを確認できません。";
 "login.pending" = "システム設定での承認を待っています。";
 "login.unavailable" = "ログインサービスを利用できません。Buckle が正しくインストールされているか確認してください。";

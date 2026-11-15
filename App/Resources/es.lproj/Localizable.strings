@@ -138,7 +138,6 @@
 "onboarding.start" = "Empezar la configuración";
 "onboarding.back" = "Atrás";
 "onboarding.finish" = "Empezar a usar Buckle";
-"onboarding.reopen" = "Mostrar guía de configuración…";
 "onboarding.updates.disabled" = "La búsqueda de actualizaciones no está disponible en esta compilación.";
 "login.pending" = "Esperando aprobación en Ajustes del Sistema.";
 "login.unavailable" = "El servicio de inicio de sesión no está disponible. Comprueba que Buckle esté instalado correctamente.";

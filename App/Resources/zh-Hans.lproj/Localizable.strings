@@ -138,7 +138,6 @@
 "onboarding.start" = "开始设置";
 "onboarding.back" = "返回";
 "onboarding.finish" = "开始使用 Buckle";
-"onboarding.reopen" = "显示使用引导…";
 "onboarding.updates.disabled" = "此构建不支持检查更新。";
 "login.pending" = "等待在系统设置中批准。";
 "login.unavailable" = "登录服务不可用。请检查 Buckle 是否已正确安装。";

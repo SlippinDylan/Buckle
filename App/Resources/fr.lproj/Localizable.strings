@@ -138,7 +138,6 @@
 "onboarding.start" = "Commencer la configuration";
 "onboarding.back" = "Retour";
 "onboarding.finish" = "Commencer à utiliser Buckle";
-"onboarding.reopen" = "Afficher le guide de configuration…";
 "onboarding.updates.disabled" = "La recherche de mises à jour n’est pas disponible dans cette version.";
 "login.pending" = "En attente d’approbation dans Réglages Système.";
 "login.unavailable" = "Le service d’ouverture de session est indisponible. Vérifiez que Buckle est correctement installé.";
