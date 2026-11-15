@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- The Settings window no longer floats above Sparkle update windows.
+
 ## [0.2.0] - 2026-11-15
 
 ### Changed
