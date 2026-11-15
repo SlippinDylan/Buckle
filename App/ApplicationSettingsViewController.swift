@@ -463,6 +463,12 @@ final class ApplicationSettingsViewController: NSViewController {
         let check = button(localized("update.check"), action: #selector(checkUpdates))
         check.isEnabled = updates.canCheck
         var views: [NSView] = [icon, name, versionBadge, check]
+        if let status = updates.status {
+            let label = description(status)
+            label.textColor = .secondaryLabelColor
+            label.alignment = .center
+            views.append(label)
+        }
         if let copyright = Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String {
             let label = description(copyright)
             label.font = .systemFont(ofSize: 12)

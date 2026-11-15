@@ -152,6 +152,24 @@ enum NativeMenuCheck {
         disabled.start()
         guard case .disabled = disabled.state else { preconditionFailure("Test-binary updates must stay disabled") }
         precondition(disabled.status == nil && !disabled.isAvailable && !disabled.canCheck)
+
+        let lifecycle = ApplicationLifecycle()
+        let panel = SystemMemoryPanel(operations: MenuCheckPanelOperations(), lifecycle: lifecycle)
+        let finder = FinderExtensionController(configurationStore: { FinderConfigurationStore(directory: directory) })
+        for updates in [unconfigured, disabled] {
+            let settings = ApplicationSettingsViewController(
+                memoryPanel: panel, finder: finder, updates: updates, lifecycle: lifecycle)
+            settings.view.setFrameSize(NSSize(width: 400, height: 450))
+            settings.selectCategory(.about)
+            settings.view.layoutSubtreeIfNeeded()
+            let views = descendants(of: settings.view)
+            let labels = views.compactMap { ($0 as? NSTextField)?.stringValue }
+            let checks = views.compactMap { $0 as? NSButton }.filter { $0.title == localized("update.check") }
+            precondition(checks.count == 1 && !checks[0].isEnabled)
+            precondition(
+                labels.contains(localized("update.unconfigured")) == (updates.status != nil),
+                "About must explain update configuration errors without adding a Debug-mode message")
+        }
     }
 
     @MainActor private static func verifyFinderSaveFailure(in directory: URL) async throws {

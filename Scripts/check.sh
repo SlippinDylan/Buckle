@@ -49,13 +49,25 @@ xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos
     App/MenuBarRestartController.swift App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/MenuBarRestartCheck.swift -o build/Checks/menu-bar-restart
 build/Checks/menu-bar-restart
 sparkle_framework="build/SourcePackages/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64"
+python3 - <<'PYINFO'
+import json
+import plistlib
+from pathlib import Path
+manifest = json.loads(Path('Config/Release/manifest.json').read_text())
+Path('build/Checks/native-menu-info.plist').write_bytes(plistlib.dumps({
+    'CFBundleIdentifier': 'studio.slippindylan.Buckle.NativeMenuCheck',
+    'CFBundleShortVersionString': manifest['version'], 'CFBundleVersion': str(manifest['build']),
+}))
+PYINFO
 xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -I "$permission_support_bin" -I "$permission_support_bin/Modules" \
     -L "$permission_support_bin" -lBucklePermissionSupport \
     -Xlinker -rpath -Xlinker "$(pwd)/$sparkle_framework" -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift \
     App/BrowserLauncher.swift App/FinderExtensionController.swift App/MouseResetController.swift App/MenuBarRestartController.swift \
-    App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift -o build/Checks/native-menu
+    App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift \
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker build/Checks/native-menu-info.plist \
+    -o build/Checks/native-menu
 build/Checks/native-menu
 xcrun swift-format lint --strict --recursive App FinderExtension Support Tests Package.swift
 python3 Scripts/check-localizations.py
