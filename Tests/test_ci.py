@@ -75,8 +75,17 @@ class CIClassificationTests(unittest.TestCase):
                 manifest.write_text(json.dumps(data))
                 after = commit()
                 result = changes.plan('push', {'before': before, 'after': after})
-                self.assertFalse(result['build'])
+                self.assertTrue(result['build'])
                 self.assertTrue(result['baseline'])
+                before = after
+                data['packagingEnabled'] = False
+                manifest.write_text(json.dumps(data))
+                after = commit()
+                self.assertFalse(changes.plan('push', {'before': before, 'after': after})['build'])
+                before = after
+                manifest.write_text(json.dumps(data, indent=2))
+                after = commit()
+                self.assertFalse(changes.plan('push', {'before': before, 'after': after})['build'])
                 before = after
                 data['version'] = '0.2.0'
                 manifest.write_text(json.dumps(data))
@@ -118,6 +127,20 @@ class PackagingCIGateTests(unittest.TestCase):
             with self.subTest(runs=runs), self.assertRaises(ValueError):
                 required_ci.select_run(runs, 'current')
 
+    def test_automatic_release_reports_skipped_build_without_treating_it_as_success(self):
+        body = {'total_count': 1, 'jobs': [{'name': 'Build Debug app', 'conclusion': 'skipped'}]}
+        self.assertFalse(required_ci.build_succeeded(body))
+        with self.assertRaises(ValueError):
+            required_ci.check_jobs(body)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'outputs'
+            with patch.dict('os.environ', {'GITHUB_REPOSITORY': 'owner/Example', 'GITHUB_SHA': 'default',
+                                          'RELEASE_SHA': 'source', 'GITHUB_OUTPUT': str(output)}), \
+                 patch.object(required_ci, 'gh', side_effect=[[self.run_data(sha='source')], {'run_attempt': 2}, body]) as gh:
+                required_ci.main(allow_skipped=True)
+            self.assertEqual(output.read_text(), 'build=false\n')
+            self.assertIn('source', gh.call_args_list[0].args)
+
     def test_skipped_missing_duplicate_and_wrong_attempt_builds_do_not_pass(self):
         required_ci.check_jobs({'total_count': 2, 'jobs': [{'name': 'baseline', 'conclusion': 'success'},
                                                          {'name': 'Build Debug app', 'conclusion': 'success'}]})
@@ -141,7 +164,7 @@ class RequiredStatusTests(unittest.TestCase):
         job = workflow.split('\n  check:\n', 1)[1]
         self.assertIn('needs: [baseline, build]', job)
         self.assertIn('if: always()', job)
-        script = job.split('        run: |\n', 1)[1]
+        script = job.split('        run: |\n', 1)[1].split('\n      - ', 1)[0]
         script = '\n'.join(line[10:] for line in script.splitlines())
         for baseline, required, build, success in [
             ('success', 'true', 'success', True),

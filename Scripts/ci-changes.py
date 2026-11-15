@@ -78,7 +78,8 @@ def plan(event_name, event):
             switch_only = (isinstance(old, dict) and isinstance(new, dict)
                            and set(old) == set(new) == {'version', 'build', 'packagingEnabled'}
                            and type(old['packagingEnabled']) is bool and type(new['packagingEnabled']) is bool
-                           and old['version'] == new['version'] and old['build'] == new['build'])
+                           and old['version'] == new['version'] and old['build'] == new['build']
+                           and not (old['packagingEnabled'] is False and new['packagingEnabled'] is True))
     return classify(paths, switch_only)
 
 

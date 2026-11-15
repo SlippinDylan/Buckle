@@ -44,7 +44,7 @@ export async function verifyReleaseTag(repository, version, expectedCommit, toke
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const publish = await needsRelease(process.env.GH_REPO, process.env.VERSION, process.env.GH_TOKEN);
   if (publish) {
-    await verifyReleaseTag(process.env.GH_REPO, process.env.VERSION, process.env.GITHUB_SHA, process.env.GH_TOKEN);
+    await verifyReleaseTag(process.env.GH_REPO, process.env.VERSION, process.env.RELEASE_SHA ?? process.env.GITHUB_SHA, process.env.GH_TOKEN);
   }
   await appendFile(process.env.GITHUB_OUTPUT, `publish=${publish}\n`);
   if (!publish) {

@@ -108,7 +108,7 @@ class CaskTests(unittest.TestCase):
 
 
 class WorkflowBoundaryTests(unittest.TestCase):
-    def test_only_manual_workflows_can_package_or_publish(self):
+    def test_automatic_release_requires_trusted_main_ci_and_exact_source_commit(self):
         ci = (ROOT / '.github/workflows/ci.yml').read_text()
         self.assertNotIn('gh release create', ci)
         self.assertNotIn('create-dmg', ci)
@@ -120,6 +120,15 @@ class WorkflowBoundaryTests(unittest.TestCase):
         release = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertLess(release.index('update-key.mjs'), release.index('APP_UPDATER_ENABLED=YES'))
         self.assertLess(release.index('Scripts/release-preflight.py'), release.index('gh release create'))
+        self.assertIn('workflow_run:', release)
+        self.assertIn('workflows: [CI]', release)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", release)
+        self.assertIn("github.event.workflow_run.event == 'push'", release)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
+        self.assertIn('ref: ${{ env.RELEASE_SHA }}', release)
+        self.assertIn('--target \"$RELEASE_SHA\"', release)
+        self.assertIn('steps.ci.outputs.build', release)
+        self.assertIn('steps.plan.outputs.publish', release)
         for workflow in (package, release):
             self.assertIn('workflow_dispatch:', workflow)
             self.assertNotIn('\n  push:', workflow)

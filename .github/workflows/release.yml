@@ -1,10 +1,17 @@
 name: Release
 on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
   actions: read
+
+env:
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 concurrency:
   group: buckle-release
@@ -13,17 +20,24 @@ concurrency:
 jobs:
   gate:
     name: Validate release request
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      enabled: ${{ steps.manifest.outputs.enabled }}
+      enabled: ${{ steps.manifest.outputs.enabled == 'true' && steps.ci.outputs.build == 'true' && steps.plan.outputs.publish == 'true' }}
       version: ${{ steps.manifest.outputs.version }}
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
       - name: Check manifest and explicit packaging switch
         id: manifest
@@ -31,10 +45,19 @@ jobs:
           node .github/scripts/sync-version.mjs --check
           echo "enabled=$(node .github/scripts/sync-version.mjs --packaging-enabled)" >> "$GITHUB_OUTPUT"
           echo "version=$(node -p 'JSON.parse(require("fs").readFileSync("Config/Release/manifest.json", "utf8")).version')" >> "$GITHUB_OUTPUT"
-      - name: Require exact-commit full CI and increasing release identity
+      - name: Check whether this commit actually built the app
+        id: ci
         if: steps.manifest.outputs.enabled == 'true'
+        run: python3 -B Scripts/require-ci.py --allow-skipped
+      - name: Check whether this version is already published
+        id: plan
+        if: steps.manifest.outputs.enabled == 'true' && steps.ci.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: node .github/scripts/plan-release.mjs
+      - name: Require increasing release identity before packaging
+        if: steps.plan.outputs.publish == 'true'
         run: |
-          python3 -B Scripts/require-ci.py
           python3 -B Scripts/release-preflight.py
           python3 -B Scripts/check.py
 
@@ -50,7 +73,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
+      - name: Report actual stage start
+        continue-on-error: true
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-start "Release"
       - name: Verify signing readiness before building the updater-enabled app
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
@@ -78,13 +108,18 @@ jobs:
           (cd build && shasum -a 256 "Buckle-$VERSION.dmg" > SHA256SUMS)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: Buckle-release-${{ github.sha }}
+          name: Buckle-release-${{ env.RELEASE_SHA }}
           path: |
             build/*.dmg
             build/*.md
             build/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
+      - name: Report installer ready
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-result Release success
 
   publish:
     name: Publish GitHub Release
@@ -102,6 +137,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
       - name: Recheck release identity and tag against this build
         run: |
@@ -109,19 +145,20 @@ jobs:
           node .github/scripts/plan-release.mjs
       - name: Download and verify installer from this run
         run: |
-          gh run download "$GITHUB_RUN_ID" --name "Buckle-release-$GITHUB_SHA" --dir build/release-assets
+          gh run download "$GITHUB_RUN_ID" --name "Buckle-release-$RELEASE_SHA" --dir build/release-assets
           node .github/scripts/release-notes.mjs --tag "v$VERSION" --output build/expected-release-notes.md
           cmp build/expected-release-notes.md "build/release-assets/Buckle-$VERSION.md"
           (cd build/release-assets && shasum -a 256 -c SHA256SUMS)
-      - name: Report actual stage start
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: node .github/scripts/discord-notify.mjs --stage-start "Release"
       - name: Publish immutable installer and release notes
         run: |
           gh release create "v$VERSION" "build/release-assets/Buckle-$VERSION.dmg" build/release-assets/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Buckle $VERSION" --latest --notes-file build/expected-release-notes.md
+            --target "$RELEASE_SHA" --title "Buckle $VERSION" --latest --notes-file build/expected-release-notes.md
+      - name: Report publication before requesting distribution
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --publication-success
+
   request-distribution:
     name: Request distribution synchronization
     needs: [gate, publish]
