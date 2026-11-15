@@ -4,6 +4,7 @@
 
 ### Fixed
 - The Settings window no longer floats above Sparkle update windows.
+- Finder context-menu actions no longer crash the extension when Finder invokes them on a background XPC queue, which prevented AirDrop from opening and removed the menu entry afterward.
 
 ## [0.2.0] - 2026-11-15
 

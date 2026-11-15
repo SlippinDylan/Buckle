@@ -230,6 +230,8 @@ Release 使用 ad-hoc 签名并保留 Hardened Runtime。ad-hoc 没有 Team ID�
 
 Finder 菜单自定义文字跟随 Buckle 的运行语言，原生 AirDrop 标题仍由系统共享服务提供。右键菜单仅 AirDrop 保留系统图标，终端、复制路径及移动入口只显示文字。Finder 菜单区分 `.contextualMenuForItems` 和 `.contextualMenuForContainer`。上下文快照放在菜单项中，不在执行时重新读取可能已改变的选区。终端使用公开 `NSWorkspace.open` 将目录 URL 交给系统 Terminal，不拼接 shell 命令。复制路径在扩展内向剪贴板写入纯文本；公共 URL 不接受复制路径操作。普通文件夹才作为终端与移动目标，应用包不是普通目标目录。
 
+Finder 通过后台 XPC 队列调用菜单的 Objective-C action，不能要求这些回调已经位于 MainActor。扩展在非隔离入口读取菜单项携带的 URL 或 URL 列表，再把值快照交给 MainActor 执行应用打开、剪贴板写入和错误提示；不跨任务传递菜单对象。回归检查通过后台 Objective-C selector 调用真实 action 入口，覆盖空载荷、错误类型和有效 URL／URL 列表；仅替换目录监控注册及最终的应用打开、剪贴板写入操作，验证有效载荷原样交给 MainActor 且各执行一次，不改动用户剪贴板。
+
 `FinderActionRequest` 扩展原有路由，保留 `buckle://finder/airdrop`；终端、移动同样校验本地文件 URL、动作和数量。移动请求携带菜单创建时的剪贴板版本。主 App 再次检查功能开关与剪贴板，建立不可变源/目标计划后直接派发，不额外弹出移动确认框。退出后不接收新操作；生命周期只等待快捷键派发返回，不等待 Finder 的实际传输结束。
 
 `FinderMoveRunner` 不再执行文件移动。执行前分别检查辅助功能及 Finder、System Events 自动化授权，拒绝时明确指出缺少哪一项。固定的 AppleScript 通过参数取得目标路径与剪贴板版本，进入目标文件夹、清空旧选区并激活 Finder；等待窗口和插入位置就绪。使用 AppKit `NSEvent.characters(byApplyingModifiers:)` 按当前键盘布局及 Command 修饰键解析 V 的物理键位，包含 Dvorak–QWERTY Command 的专用映射；随后重新读取并验证窗口、目标、插入位置、焦点、附属对话框与剪贴板，向 Finder 发送 Command–Option–V。只接受唯一键位，不硬编码美式键码，不发送字符事件，不扫描菜单、不匹配标题或依赖私有菜单标识。Finder 或全局 `NSUserKeyEquivalents` 存在自定义菜单快捷键时明确停止，避免默认组合被重新分配后触发其他命令。该检查会拒绝这些域内的任意菜单快捷键自定义，并不只检查移动命令。

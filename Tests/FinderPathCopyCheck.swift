@@ -1,8 +1,10 @@
 import AppKit
+import OSLog
 
 @main
 enum FinderPathCopyCheck {
-    static func main() throws {
+    @MainActor static func main() async throws {
+        try await verifyBackgroundMenuCallbacks()
         try verifySharedLanguage()
         let board = NSPasteboard.withUniqueName()
         defer { board.releaseGlobally() }
@@ -18,7 +20,57 @@ enum FinderPathCopyCheck {
             } catch FinderActionRequest.RequestError.invalidFiles {}
             precondition(board.string(forType: .string) == urls.map(\.path).joined(separator: "\n"))
         }
-        print("Copy paths preserves literal names and multiple selections, without changing the user clipboard.")
+        print(
+            "Finder menu actions accept background Objective-C callbacks; path copying preserves literal names without changing the user clipboard."
+        )
+    }
+
+    @MainActor private static func verifyBackgroundMenuCallbacks() async throws {
+        let files = [URL(fileURLWithPath: "/tmp/中文 '$(literal); #?.txt"), URL(fileURLWithPath: "/Volumes/Test Folder")]
+        let request = try FinderActionRequest(action: .airDrop, files: files).url()
+        var openCount = 0
+        var copyCount = 0
+        let openRequest: @MainActor @Sendable (URL, Logger) -> Void = { received, _ in
+            MainActor.preconditionIsolated()
+            precondition(Thread.isMainThread && received == request)
+            openCount += 1
+            precondition(openCount == 1)
+        }
+        let copyFiles: @MainActor @Sendable ([URL], Logger) -> Void = { received, _ in
+            MainActor.preconditionIsolated()
+            precondition(Thread.isMainThread && received == files)
+            copyCount += 1
+            precondition(copyCount == 1)
+        }
+        // Exercise the real Objective-C entry points from Finder's background callback context.
+        await Task.detached {
+            var observedDirectories: Set<URL> = []
+            let finder = BuckleFinderSync(
+                observeDirectories: { observedDirectories = $0 }, openRequest: openRequest, copyFiles: copyFiles)
+            precondition(observedDirectories.contains(URL(fileURLWithPath: "/")))
+            precondition(!Thread.isMainThread)
+            for name in ["performAction:", "copyPath:"] {
+                let selector = NSSelectorFromString(name)
+                precondition(finder.responds(to: selector))
+                _ = finder.perform(selector, with: NSMenuItem())
+                let invalid = NSMenuItem()
+                invalid.representedObject = "invalid payload"
+                _ = finder.perform(selector, with: invalid)
+                let valid = NSMenuItem()
+                if name == "performAction:" {
+                    valid.representedObject = request
+                } else {
+                    valid.representedObject = files
+                }
+                _ = finder.perform(selector, with: valid)
+            }
+        }.value
+        // A missing dispatch must fail the check rather than leave it waiting forever.
+        let deadline = ContinuousClock.now + .seconds(2)
+        while openCount == 0 || copyCount == 0, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(openCount == 1 && copyCount == 1, "Valid Finder requests were not dispatched")
     }
     private static func verifySharedLanguage() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".bundle")

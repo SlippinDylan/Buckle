@@ -6,16 +6,30 @@ import OSLog
 final class BuckleFinderSync: FIFinderSync {
     private let logger = Logger(subsystem: FinderIntegration.identifier, category: "Finder")
 
-    override init() {
+    private let openRequest: @MainActor @Sendable (URL, Logger) -> Void
+    private let copyFiles: @MainActor @Sendable ([URL], Logger) -> Void
+
+    override convenience init() {
+        self.init(observeDirectories: { FIFinderSyncController.default().directoryURLs = $0 })
+    }
+
+    nonisolated init(
+        observeDirectories: (Set<URL>) -> Void,
+        openRequest: @escaping @MainActor @Sendable (URL, Logger) -> Void = BuckleFinderSync.openHost,
+        copyFiles: @escaping @MainActor @Sendable ([URL], Logger) -> Void = BuckleFinderSync.copyPaths
+    ) {
+        self.openRequest = openRequest
+        self.copyFiles = copyFiles
         super.init()
-        FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
+        var directories: Set<URL> = [URL(fileURLWithPath: "/")]
         if let volumes = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: nil, options: .skipHiddenVolumes)
         {
-            FIFinderSyncController.default().directoryURLs.formUnion(volumes)
+            directories.formUnion(volumes)
         } else {
             logger.error("Could not enumerate mounted volumes.")
         }
+        observeDirectories(directories)
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(volumeMounted(_:)), name: NSWorkspace.didMountNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -105,8 +119,13 @@ final class BuckleFinderSync: FIFinderSync {
         menu.addItem(item)
     }
 
-    @objc private func performAction(_ sender: NSMenuItem) {
+    @objc private nonisolated func performAction(_ sender: NSMenuItem) {
         guard let request = sender.representedObject as? URL else { return }
+        // Finder invokes menu actions on its XPC queue; only transfer the value snapshot to MainActor.
+        Task { @MainActor [openRequest, logger] in openRequest(request, logger) }
+    }
+
+    private static func openHost(_ request: URL, logger: Logger) {
         let host = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
         let configuration = NSWorkspace.OpenConfiguration()
@@ -134,8 +153,12 @@ final class BuckleFinderSync: FIFinderSync {
         }
     }
 
-    @objc private func copyPath(_ sender: NSMenuItem) {
+    @objc private nonisolated func copyPath(_ sender: NSMenuItem) {
         guard let files = sender.representedObject as? [URL] else { return }
+        Task { @MainActor [copyFiles, logger] in copyFiles(files, logger) }
+    }
+
+    private static func copyPaths(_ files: [URL], logger: Logger) {
         var language: String?
         do {
             let configuration = try FinderConfigurationStore.standard().load()
