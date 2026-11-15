@@ -29,6 +29,18 @@ The setup guide appears once on a normal launch if you have not dismissed it bef
 
 Homebrew installation is not available yet. Use the DMG until the Buckle Cask is published in the [shared Tap](https://github.com/SlippinDylan/homebrew-tap).
 
+## Uninstall and reinstall
+
+Quit Buckle from its menu and wait for it to exit, then move `Buckle.app` to the Trash. Removing only the app preserves its settings and setup record, so replacing or reinstalling it does not show setup again.
+
+To show setup after reinstalling, also run this command in Terminal after quitting Buckle:
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+This removes only the setup dismissal record, leaving other settings, Finder data, and system permissions unchanged. If the record does not exist, there is nothing to remove. After reinstalling, launch Buckle manually to see setup once; do not run this command for a normal upgrade.
+
 ## What you can do
 
 <table>

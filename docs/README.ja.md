@@ -29,6 +29,18 @@ Buckle は、システムツール、言語を指定したブラウザ起動、F
 
 Homebrew でのインストールはまだ利用できません。[共通 Tap](https://github.com/SlippinDylan/homebrew-tap) で Buckle Cask が公開されるまでは DMG を使用してください。
 
+## アンインストールと再インストール
+
+メニューから Buckle を終了し、終了を待ってから `Buckle.app` をゴミ箱に移動します。App の削除だけでは設定とガイドの記録が残るため、上書きや再インストールでガイドが再表示されることはありません。
+
+再インストール後にガイドをもう一度表示するには、Buckle の終了後にターミナルで次のコマンドも実行します。
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+このコマンドはガイドを閉じた記録のみを削除し、ほかの設定、Finder のデータ、システム権限は保持します。記録が存在しない場合は削除不要です。再インストール後、Buckle を手動で起動するとガイドが一度表示されます。通常のアップデートでは実行しないでください。
+
 ## 主な機能
 
 <table>

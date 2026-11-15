@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Documented how to clear the setup dismissal record when uninstalling so setup appears after reinstalling; normal upgrades preserve it.
+
 ## [0.3.1] - 2026-11-15
 
 ### Changed

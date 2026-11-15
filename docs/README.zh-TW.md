@@ -29,6 +29,18 @@ Buckle 是原生 macOS 選單列工具，提供系統工具、依語言啟動瀏
 
 目前尚無法透過 Homebrew 安裝。Buckle Cask 在[共用 Tap](https://github.com/SlippinDylan/homebrew-tap)發佈之前，請使用 DMG。
 
+## 解除安裝與重新安裝
+
+從選單結束 Buckle 並等待結束，再將 `Buckle.app` 移到垃圾桶。只刪除 App 會保留設定和引導記錄，覆蓋安裝或重新安裝都不會因此再次顯示引導。
+
+若希望重新安裝後再顯示一次引導，結束 Buckle 後，還需在終端機執行：
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+此命令只清除引導關閉記錄，保留其他設定、Finder 資料和系統權限。若提示記錄不存在，則無需清除。重新安裝後手動啟動 Buckle，即會顯示一次引導；正常升級請勿執行此命令。
+
 ## 功能一覽
 
 <table>

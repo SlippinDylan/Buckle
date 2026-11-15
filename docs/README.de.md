@@ -29,6 +29,18 @@ Wenn du den Einrichtungsassistenten noch nicht geschlossen oder abgeschlossen ha
 
 Die Installation über Homebrew ist noch nicht verfügbar. Verwende die DMG, bis der Buckle-Cask im [gemeinsamen Tap](https://github.com/SlippinDylan/homebrew-tap) veröffentlicht wurde.
 
+## Deinstallieren und neu installieren
+
+Beende Buckle über das Menü und warte, bis es beendet ist. Verschiebe dann `Buckle.app` in den Papierkorb. Beim Löschen der App bleiben Einstellungen und der Einrichtungsstatus erhalten. Überschreiben oder Neuinstallieren zeigt den Assistenten deshalb nicht erneut an.
+
+Damit der Assistent nach einer Neuinstallation wieder erscheint, führe nach dem Beenden von Buckle zusätzlich diesen Befehl im Terminal aus:
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+Der Befehl entfernt nur den Eintrag zum Schließen des Assistenten. Andere Einstellungen, Finder-Daten und Systemberechtigungen bleiben erhalten. Existiert der Eintrag nicht, ist nichts zu entfernen. Starte Buckle nach der Neuinstallation manuell; der Assistent erscheint einmal. Führe den Befehl bei einem normalen Update nicht aus.
+
 ## Funktionen
 
 <table>

@@ -29,6 +29,18 @@ Le guide de configuration apparaît une seule fois lors d’un lancement normal 
 
 L’installation via Homebrew n’est pas encore disponible. Utilisez le DMG jusqu’à la publication du Cask Buckle dans le [Tap commun](https://github.com/SlippinDylan/homebrew-tap).
 
+## Désinstaller et réinstaller
+
+Quittez Buckle depuis son menu et attendez sa fermeture, puis placez `Buckle.app` dans la corbeille. Supprimer uniquement l’app conserve les réglages et la fermeture du guide ; remplacer ou réinstaller l’app ne réaffiche donc pas le guide.
+
+Pour revoir le guide après une réinstallation, exécutez aussi cette commande dans Terminal après avoir quitté Buckle :
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+Cette commande supprime uniquement la fermeture enregistrée du guide et conserve les autres réglages, les données Finder et les autorisations système. Si cette entrée est absente, rien ne doit être supprimé. Après la réinstallation, lancez Buckle manuellement pour afficher le guide une fois. N’exécutez pas cette commande lors d’une mise à jour normale.
+
 ## Fonctionnalités
 
 <table>

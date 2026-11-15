@@ -29,6 +29,18 @@ Apple Silicon 또는 Intel Mac의 **macOS 15 이상**이 필요합니다. CI 빌
 
 Homebrew 설치는 아직 제공되지 않습니다. [공유 Tap](https://github.com/SlippinDylan/homebrew-tap)에 Buckle Cask가 공개되기 전까지 DMG를 사용하세요.
 
+## 제거 및 재설치
+
+메뉴에서 Buckle을 종료하고 종료될 때까지 기다린 다음 `Buckle.app`을 휴지통으로 이동하세요. 앱만 삭제하면 설정과 가이드 기록이 남으므로 덮어쓰거나 재설치해도 가이드가 다시 표시되지 않습니다.
+
+재설치 후 가이드를 다시 표시하려면 Buckle을 종료한 뒤 터미널에서 다음 명령도 실행하세요.
+
+```bash
+defaults delete studio.slippindylan.Buckle onboarding.dismissed
+```
+
+이 명령은 가이드를 닫은 기록만 삭제하며 다른 설정, Finder 데이터 및 시스템 권한은 유지합니다. 기록이 없다는 메시지가 나오면 삭제할 것이 없습니다. 재설치 후 Buckle을 직접 실행하면 가이드가 한 번 표시됩니다. 일반 업데이트 시에는 실행하지 마세요.
+
 ## 주요 기능
 
 <table>
