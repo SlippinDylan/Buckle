@@ -41,7 +41,7 @@ bash Scripts/check.sh
 
 `CI` 对 main 推送、目标为 main 的 PR 及手动运行进行变更分类。`Scripts/ci-changes.py` 按实际输入决定任务：文档和 README 不编译；通知、CI、发布及打包辅助脚本只运行相关基线检查；manifest 仅关闭打包开关或调整格式不编译；从关闭改为开启时执行完整 CI，以便自动发行。App、扩展、资源、依赖锁、版本或构建号改变、混合提交和未知路径保守执行完整检查及 Universal 2 Debug 构建。手动 CI 始终强制完整验证。CI 自身不创建 DMG、tag、GitHub Release 或修改 Tap；符合条件的成功 CI 完成后，由 `Release` 工作流自动接续正式发行。
 
-manifest 的 `packagingEnabled` 默认关闭。开关开启时，受信 main 推送或 main 上手动完整 CI 成功后，`Release` 自动检查该次运行与对应 SHA：`Build Debug app` 必须实际成功，版本必须尚未发布。PR、失败或取消的 CI、仅做轻量检查的变更、跳过的编译及其他 SHA 的成功均不能触发发行。开启打包开关会触发完整 CI；历史提交曾跳过编译时，可对该 main 提交手动运行完整 CI 恢复自动链路。`Scripts/require-ci.py` 校验同 SHA 的实际构建结果；自动发行固定使用触发 CI 的源码 SHA，不能借用其他提交的成功。
+manifest 的 `packagingEnabled` 默认关闭。开关开启时，受信 main 推送或 main 上手动完整 CI 成功后，`Release` 自动检查该次运行与对应 SHA：`Build Debug app` 必须实际成功，版本必须尚未发布。PR、失败或取消的 CI、仅做轻量检查的变更、跳过的编译及其他 SHA 的成功均不能触发发行。开启打包开关会触发完整 CI；历史提交曾跳过编译时，可对该 main 提交手动运行完整 CI 恢复自动链路。`Scripts/require-ci.py` 校验同 SHA 的实际构建结果；自动发行核对触发它的那次 CI，手动发行核对该 SHA 最新的 CI。
 
 - `Package` 是可选的 main 手动测试流程，也要求开关开启和同 SHA 的成功完整 CI。它在线构建 Universal 2、ad-hoc、更新关闭的测试 App，生成带版本及构建号的 `Buckle-<version>-<build>-test.dmg` 和 SHA256，上传保留 7 天的 artifact；不创建公开 Release、Cask 或 appcast。
 - `Release` 自动接续符合条件的 main CI，在线执行发行前检查、构建正式安装包，再由仅有发布权限的独立 job 接收本次同 SHA artifact，复核校验和及 CHANGELOG 后创建稳定 GitHub Release。不需要本地打包或上传。已有版本不覆盖；重新发行必须同时递增版本和构建号。
@@ -113,7 +113,7 @@ GitHub 仓库 `SlippinDylan/Buckle` 已配置 Secret `SPARKLE_ED_PRIVATE_KEY`、
 正式更新使用现有 `homebrew-tap` 的 GitHub Pages `docs/` 托管，安装包留在 GitHub Release：
 
 1. 在 manifest 同时递增 `version` 和 `build`，将真实英文变更移入带日期的版本章节，并显式开启 `packagingEnabled`。推送 main 后自动运行分类 CI；需要 App 构建的变更通过完整检查及实际 Debug 构建后接续发行。仅文档／辅助变更不发行；需要恢复时手动运行 main 完整 CI。
-2. 符合条件的 main CI 完成后自动触发 `Release`，固定该次 CI 的源码 SHA，并核对同 SHA 最新成功完整 CI；开关关闭、实际构建未成功或版本已发布时不再发行。`Scripts/release-preflight.py` 在构建／发行前核对所有已发布稳定版标签的 manifest，拒绝版本或构建号未递增；GitHub 查询或元数据缺失时报错，不猜测已发布状态。正式构建前验证私钥推导公钥与 Variable、源码公钥相同，不轮换更新身份。
+2. 符合条件的 main CI 完成后自动触发 `Release`，固定该次 CI 的运行 ID 和源码 SHA；开关关闭、实际构建未成功或版本已发布时不再发行。`Scripts/release-preflight.py` 在构建／发行前核对所有已发布稳定版标签的 manifest，拒绝版本或构建号未递增；GitHub 查询或元数据缺失时报错，不猜测已发布状态。正式构建前验证私钥推导公钥与 Variable、源码公钥相同，不轮换更新身份。
 3. 正式包使用 ad-hoc 签名和开启更新的 App，验证主应用／扩展身份、架构、版本和更新配置，生成 `Buckle-<version>.dmg`、SHA256 与匹配的英文说明。发行 job 再核对既有 tag 最终指向当前构建 SHA，兼容普通／附注 tag，拒绝移动 tag、覆盖工件或接受其他提交产物。只有全部检查通过才创建稳定 Release。
 4. 公开稳定 Release 创建成功后由发行流程主动触发 `Publish Update Feed`；手动发布也支持 `release` 事件，失败可在 main 输入既有标签单独重跑。GitHub 的 `GITHUB_TOKEN` 创建事件不会链式触发其他工作流，不能只依赖 Release 事件。私有仓库／预发布版本不生成公开分发元数据，不自动改变可见性。
 5. 同步工作流下载已发布原 DMG，不重建 App；核对公开稳定版、标签 manifest、包内 identity／版本／构建号／公钥／更新地址及 Sparkle 组件，验证私钥配对，再生成和验签最多保留三版的 appcast。由真实工件的版本、不可变下载 URL 和 SHA-256 生成 `Casks/buckle.rb`，只修改 Tap 的 Buckle feed、Buckle Cask 和 README 对应条目，不覆盖其他 App。推送冲突最多重试三次。

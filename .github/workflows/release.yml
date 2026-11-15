@@ -47,6 +47,8 @@ jobs:
           echo "version=$(node -p 'JSON.parse(require("fs").readFileSync("Config/Release/manifest.json", "utf8")).version')" >> "$GITHUB_OUTPUT"
       - name: Check whether this commit actually built the app
         id: ci
+        env:
+          SOURCE_CI_RUN_ID: ${{ github.event.workflow_run.id }}
         if: steps.manifest.outputs.enabled == 'true'
         run: python3 -B Scripts/require-ci.py --allow-skipped
       - name: Check whether this version is already published

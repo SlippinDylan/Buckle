@@ -127,6 +127,7 @@ class WorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("github.event.workflow_run.conclusion == 'success'", release)
         self.assertIn('ref: ${{ env.RELEASE_SHA }}', release)
         self.assertIn('--target \"$RELEASE_SHA\"', release)
+        self.assertIn('SOURCE_CI_RUN_ID: ${{ github.event.workflow_run.id }}', release)
         self.assertIn('steps.ci.outputs.build', release)
         self.assertIn('steps.plan.outputs.publish', release)
         for workflow in (package, release):

@@ -127,6 +127,16 @@ class PackagingCIGateTests(unittest.TestCase):
             with self.subTest(runs=runs), self.assertRaises(ValueError):
                 required_ci.select_run(runs, 'current')
 
+    def test_automatic_release_uses_its_triggering_ci_even_when_a_newer_run_is_in_progress(self):
+        runs = [self.run_data(conclusion=None, run_id=2), self.run_data(run_id=1)]
+        self.assertEqual(required_ci.select_run(runs, 'current', source_run_id=1), 1)
+        with self.assertRaises(ValueError):
+            required_ci.select_run(runs, 'current')
+        with self.assertRaises(ValueError):
+            required_ci.select_run(runs, 'current', source_run_id=3)
+        with self.assertRaises(ValueError):
+            required_ci.select_run(runs, 'other', source_run_id=1)
+
     def test_automatic_release_reports_skipped_build_without_treating_it_as_success(self):
         body = {'total_count': 1, 'jobs': [{'name': 'Build Debug app', 'conclusion': 'skipped'}]}
         self.assertFalse(required_ci.build_succeeded(body))

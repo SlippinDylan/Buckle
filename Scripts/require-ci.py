@@ -7,11 +7,12 @@ import os
 import subprocess
 
 
-def select_run(runs, sha):
+def select_run(runs, sha, source_run_id=None):
     eligible = [run for run in runs if run['headSha'] == sha
-                and run['event'] in ('push', 'workflow_dispatch')]
+                and run['event'] in ('push', 'workflow_dispatch')
+                and (source_run_id is None or run['databaseId'] == source_run_id)]
     if not eligible or eligible[0]['conclusion'] != 'success':
-        raise ValueError('The latest push/manual CI for this commit must succeed; run CI manually if needed')
+        raise ValueError('The selected push/manual CI for this commit must succeed; run CI manually if needed')
     return eligible[0]['databaseId']
 
 
@@ -36,7 +37,8 @@ def main(allow_skipped=False):
     sha = os.environ['RELEASE_SHA'] if 'RELEASE_SHA' in os.environ else os.environ['GITHUB_SHA']
     runs = gh('run', 'list', '--repo', repo, '--workflow', 'ci.yml', '--branch', 'main',
               '--commit', sha, '--limit', '100', '--json', 'databaseId,event,conclusion,headSha')
-    run_id = select_run(runs, sha)
+    source_run_id = os.environ.get('SOURCE_CI_RUN_ID')
+    run_id = select_run(runs, sha, int(source_run_id) if source_run_id else None)
     attempt = gh('api', 'repos/' + repo + '/actions/runs/' + str(run_id))['run_attempt']
     jobs = gh('api', 'repos/' + repo + '/actions/runs/' + str(run_id)
               + '/attempts/' + str(attempt) + '/jobs?per_page=100')
