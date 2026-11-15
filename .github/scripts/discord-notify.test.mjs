@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { notification, stageStartNotification, enrichWorkflowResult, send } from './discord-notify.mjs';
+import { notification, stageStartNotification, stageResultNotification, publicationSuccessNotification, ciStartNotifications, enrichWorkflowResult, send } from './discord-notify.mjs';
 
 const repository = { full_name: 'SlippinDylan/Buckle' };
 
@@ -12,7 +12,7 @@ test('untrusted event text cannot ping Discord members', () => {
 });
 
 test('reports workflow failures accurately', () => {
-  const event = { repository, action: 'completed', workflow_run: { name: 'CI', conclusion: 'failure', head_branch: 'main', id: 42 } };
+  const event = { repository, action: 'completed', workflow_run: { name: 'CI', event: 'push', conclusion: 'failure', head_branch: 'main', id: 42 } };
   assert.equal(notification('workflow_run', event).embeds[0].color, 0xed4245);
 });
 
@@ -43,17 +43,17 @@ test('sends JSON with wait enabled', async () => {
 test('update feed failures and successes have distinct release notifications', () => {
   for (const [conclusion, color] of [['failure', 0xed4245], ['success', 0x57f287]]) {
     const event = { repository, action: 'completed', workflow_run: {
-      name: 'Publish Update Feed', id: 42, conclusion, stageConclusion: conclusion, head_branch: 'main', head_sha: 'abcdef123456',
+      name: 'Publish Update Feed', event: 'workflow_dispatch', id: 42, conclusion, stageConclusion: conclusion, head_branch: 'main', head_sha: 'abcdef123456',
       run_number: 7, html_url: 'https://github.com/SlippinDylan/Buckle/actions/runs/42',
     } };
     const embed = notification('workflow_run', event).embeds[0];
     assert.equal(embed.color, color);
-    assert.ok(embed.title.includes('更新源与 Homebrew 同步'));
+    assert.ok(embed.title.includes('Sparkle 与 Homebrew 同步'));
     assert.ok(embed.title.includes(conclusion === 'success' ? '成功' : '失败'));
     assert.equal(embed.url, event.workflow_run.html_url);
   }
   const release = notification('release', { repository, release: { tag_name: 'v0.1.0' } });
-  assert.ok(release.embeds[0].title.includes('GitHub Release'));
+  assert.equal(release, null);
 });
 
 test('workflow trigger includes every workflow handled by the notification script', async () => {
@@ -68,17 +68,17 @@ test('Dependabot push notifications are excluded while PR and CI notifications r
   const source = await readFile(new URL('../workflows/discord-notify.yml', import.meta.url), 'utf8');
   const push = source.match(/^  push:\n((?:    .+\n)+)/m)?.[1];
   assert.ok(push, 'Push notification trigger must remain enabled.');
-  assert.match(push, /branches-ignore: \['dependabot\/\*\*'\]/);
+  assert.match(push, /branches-ignore: \['main', 'dependabot\/\*\*'\]/);
   assert.doesNotMatch(push, /^    branches:/m);
   assert.match(source, /^  pull_request_target:/m);
   assert.match(source, /^  workflow_run:/m);
-  assert.match(source, /^  release:/m);
+  assert.doesNotMatch(source, /^  release:/m);
 });
 
 
 function runEvent(name, conclusion = 'success') {
   return { repository, action: 'completed', workflow_run: {
-    name, conclusion, head_branch: 'main', head_sha: 'abcdef123456', id: 42, run_attempt: 3, run_number: 7,
+    name, event: 'push', conclusion, head_branch: 'main', head_sha: 'abcdef123456', id: 42, run_attempt: 3, run_number: 7,
   } };
 }
 
@@ -128,28 +128,23 @@ test('packaging success depends on the current attempt actual Build DMG job', as
 test('CI can succeed after deliberately skipping App compilation', async () => {
   const event = runEvent('CI');
   await enrichWorkflowResult(event, 'test-token', async () => jobsResponse([{ name: 'Build Debug app', conclusion: 'skipped' }]));
-  const embed = notification('workflow_run', event).embeds[0];
-  assert.ok(embed.title.includes('成功'));
-  assert.ok(embed.description.includes('App 编译已跳过'));
+  assert.equal(notification('workflow_run', event), null);
 });
 
 test('automatic Release workflow reports publication independently of distribution', async () => {
   for (const [name, job] of [['Release', 'Publish GitHub Release'], ['Publish Update Feed', 'Synchronize distribution metadata']]) {
     const event = runEvent(name);
     await enrichWorkflowResult(event, 'test-token', async () => jobsResponse([{ name: job, conclusion: 'success' }]));
-    const embed = notification('workflow_run', event).embeds[0];
-    assert.ok(embed.title.includes('成功'));
-    if (name === 'Release') assert.ok(embed.description.includes('GitHub Release 已发布'));
-    else assert.ok(embed.title.includes('更新源与 Homebrew 同步'));
+    const payload = notification('workflow_run', event);
+    if (name === 'Release') assert.equal(payload, null);
+    else assert.ok(payload.embeds[0].title.includes('Sparkle 与 Homebrew 同步成功'));
   }
 });
 
 test('starts report workflow execution without claiming a generated artifact', async () => {
   const event = { ...runEvent('Package'), action: 'in_progress' };
   await enrichWorkflowResult(event, undefined, async () => assert.fail('Start events must not fetch a completed stage'));
-  const embed = notification('workflow_run', event).embeds[0];
-  assert.ok(embed.title.includes('流程已开始'));
-  assert.ok(!embed.title.includes('成功'));
+  assert.equal(notification('workflow_run', event), null);
 });
 
 test('missing or contradictory job data cannot produce a success message', async () => {
@@ -181,7 +176,7 @@ test('Actions fetch errors do not disclose credentials or fabricate successful r
 });
 
 
-test('published Release remains successful when the separate distribution request fails', async () => {
+test('failed distribution requests report only their own failure after publication', async () => {
   for (const result of ['failure', 'timed_out', 'cancelled']) {
     const event = runEvent('Release', result);
     await enrichWorkflowResult(event, 'token', async () => jobsResponse([
@@ -189,7 +184,8 @@ test('published Release remains successful when the separate distribution reques
       { name: 'Request distribution synchronization', conclusion: result },
     ]));
     const embed = notification('workflow_run', event).embeds[0];
-    assert.ok(embed.title.includes('成功'));
+    assert.ok(embed.title.includes('分发触发'));
+    assert.ok(!embed.title.includes('发行成功'));
     assert.ok(embed.description.includes('GitHub Release 已发布'));
     assert.ok(embed.description.includes('分发触发'));
     assert.ok(embed.description.includes('整体流程'));
@@ -214,7 +210,7 @@ test('explicit trusted stage starts produce one stage-specific payload without w
   for (const name of ['CI', 'Package', 'Release', 'Publish Update Feed']) {
     const payload = stageStartNotification(name, environment);
     assert.equal(payload.embeds.length, 1);
-    assert.ok(payload.embeds[0].title.includes('阶段已开始'));
+    assert.ok(payload.embeds[0].title.includes('已开始'));
     assert.ok(!payload.embeds[0].title.includes('流程已开始'));
     assert.equal(payload.embeds[0].url, 'https://github.com/SlippinDylan/Buckle/actions/runs/42');
     assert.deepEqual(payload.allowed_mentions, { parse: [] });
@@ -238,4 +234,102 @@ test('stage-start CLI validates arguments before reading an event file or sendin
     assert.ok(!result.stderr.includes('ENOENT'));
     assert.ok(!result.stderr.includes('Invalid Discord webhook configuration'));
   }
+});
+
+test('main CI owns the ordered push and check start, reruns only announce checks', () => {
+  const environment = {
+    GITHUB_REPOSITORY: 'SlippinDylan/Buckle', GITHUB_SHA: 'a'.repeat(40), GITHUB_RUN_ID: '42',
+    GITHUB_REF_NAME: 'main', GITHUB_EVENT_NAME: 'push', GITHUB_RUN_ATTEMPT: '1',
+  };
+  const event = { repository, ref: 'refs/heads/main', head_commit: { message: 'Release changes' } };
+  const payloads = ciStartNotifications(event, environment);
+  assert.deepEqual(payloads.map(payload => payload.embeds[0].title), ['Buckle · 代码已推送', 'Buckle · 检查已开始']);
+  for (const overrides of [{ GITHUB_RUN_ATTEMPT: '2' }, { GITHUB_EVENT_NAME: 'workflow_dispatch' }]) {
+    assert.deepEqual(ciStartNotifications({}, { ...environment, ...overrides }).map(payload => payload.embeds[0].title),
+      ['Buckle · 检查已开始']);
+  }
+});
+
+test('PR and Dependabot CI results do not enter the main release notification chain', async () => {
+  for (const overrides of [{ event: 'pull_request' }, { event: 'workflow_run' }, { event: 'release' }, { head_branch: 'dependabot/npm/update' }, { head_branch: 'feature' }]) {
+    const event = runEvent('CI');
+    Object.assign(event.workflow_run, overrides);
+    await enrichWorkflowResult(event, undefined, async () => assert.fail('Ignored workflow must not fetch jobs'));
+    assert.equal(notification('workflow_run', event), null);
+  }
+});
+
+test('Release reports the actual failed phase and stays silent when no release was eligible', async () => {
+  for (const [jobs, expected] of [
+    [[{ name: 'Validate release request', conclusion: 'failure' }], '发行前检查失败'],
+    [[{ name: 'Build release installer', conclusion: 'failure' }, { name: 'Publish GitHub Release', conclusion: 'skipped' }], '打包失败'],
+    [[{ name: 'Build release installer', conclusion: 'success' }, { name: 'Publish GitHub Release', conclusion: 'failure' }], '发行失败'],
+  ]) {
+    const event = runEvent('Release', 'failure');
+    await enrichWorkflowResult(event, 'token', async () => jobsResponse(jobs));
+    assert.equal(notification('workflow_run', event).embeds[0].title, `Buckle · ${expected}`);
+  }
+  const event = runEvent('Release');
+  await enrichWorkflowResult(event, 'token', async () => jobsResponse([
+    { name: 'Validate release request', conclusion: 'success' },
+    { name: 'Build release installer', conclusion: 'skipped' },
+    { name: 'Publish GitHub Release', conclusion: 'skipped' },
+  ]));
+  assert.equal(notification('workflow_run', event), null);
+});
+
+test('explicit packaging results do not read event metadata and validate result values', () => {
+  const environment = {
+    GITHUB_REPOSITORY: 'SlippinDylan/Buckle', GITHUB_SHA: 'a'.repeat(40), GITHUB_RUN_ID: '42', GITHUB_REF_NAME: 'main',
+  };
+  assert.equal(stageResultNotification('Release', 'success', environment).embeds[0].title, 'Buckle · 打包成功');
+  assert.equal(stageResultNotification('Release', 'failure', environment).embeds[0].title, 'Buckle · 打包失败');
+  assert.throws(() => stageResultNotification('Release', 'skipped', environment), /Unknown stage result/);
+  assert.throws(() => stageResultNotification('Other', 'success', environment), /Unknown workflow stage/);
+});
+
+test('completed lifecycle events are the sole result notification owner', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../workflows/discord-notify.yml', import.meta.url), 'utf8');
+  assert.match(source, /types: \[completed\]/);
+  assert.doesNotMatch(source, /in_progress/);
+  assert.doesNotMatch(source, /^  release:/m);
+  assert.match(source, /workflow_run.head_branch == 'main'/);
+});
+
+test('successful CI and publication lifecycle events do not repeat direct stage results', async () => {
+  assert.equal(notification('workflow_run', runEvent('CI')), null);
+  for (const conclusion of ['success', 'skipped']) {
+    const event = runEvent('Release');
+    await enrichWorkflowResult(event, 'token', async () => jobsResponse([
+      { name: 'Publish GitHub Release', conclusion: 'success' },
+      { name: 'Request distribution synchronization', conclusion },
+    ]));
+    assert.equal(notification('workflow_run', event), null);
+  }
+});
+
+test('release-triggered synchronization reports tag-based workflow results', async () => {
+  for (const result of ['success', 'failure']) {
+    const event = runEvent('Publish Update Feed', result);
+    Object.assign(event.workflow_run, { event: 'release', head_branch: 'v0.2.1' });
+    await enrichWorkflowResult(event, 'token', async () => jobsResponse([
+      { name: 'Synchronize distribution metadata', conclusion: result },
+    ]));
+    assert.ok(notification('workflow_run', event).embeds[0].title.includes(result === 'success' ? '成功' : '失败'));
+  }
+});
+
+test('publication success is distinct from packaging and uses the actual release SHA', () => {
+  const environment = {
+    GITHUB_REPOSITORY: 'SlippinDylan/Buckle', GITHUB_SHA: 'a'.repeat(40), RELEASE_SHA: 'b'.repeat(40),
+    GITHUB_RUN_ID: '42', GITHUB_REF_NAME: 'main',
+  };
+  const published = publicationSuccessNotification(environment).embeds[0];
+  assert.equal(published.title, 'Buckle · 发行成功');
+  assert.ok(published.description.includes('bbbbbbb'));
+  assert.ok(!published.description.includes('aaaaaaa'));
+  assert.equal(stageResultNotification('Release', 'success', environment).embeds[0].title, 'Buckle · 打包成功');
+  assert.equal(stageResultNotification('CI', 'success', environment).embeds[0].title, 'Buckle · 检查成功');
+  assert.throws(() => publicationSuccessNotification({ ...environment, RELEASE_SHA: 'invalid' }), /Invalid build commit SHA/);
 });

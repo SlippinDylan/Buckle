@@ -9,7 +9,7 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   baseline:
     runs-on: ubuntu-latest
@@ -22,6 +22,12 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Report actual stage start
+        continue-on-error: true
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --ci-start
       - id: changes
         name: Classify changes
         run: python3 Scripts/ci-changes.py
@@ -37,7 +43,7 @@ jobs:
             echo 'PENDING: Xcode app is not integrated. No app was compiled.' >> "$GITHUB_STEP_SUMMARY"
           fi
           if test '${{ steps.changes.outputs.build }}' = false; then
-            echo 'No app build inputs changed. App compilation skipped; packaging is always manual.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'No app build inputs changed. App compilation skipped; automatic release is skipped too.' >> "$GITHUB_STEP_SUMMARY"
           fi
   build:
     name: Build Debug app
@@ -49,11 +55,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Report actual stage start
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: node .github/scripts/discord-notify.mjs --stage-start "CI"
       - name: Test and check source
         run: bash Scripts/check.sh
       - name: Test native SwiftPM resource layout
@@ -86,3 +87,13 @@ jobs:
             test "$BUILD_REQUIRED" = false
             test "$BUILD_RESULT" = skipped
           fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          persist-credentials: false
+      - name: Report checks passed before downstream packaging
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node .github/scripts/discord-notify.mjs --stage-result CI success

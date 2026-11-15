@@ -1,8 +1,8 @@
 name: Discord Activity Notifications
 on:
   push:
-    # Dependabot pushes cannot read Actions secrets; PR and CI events report these updates.
-    branches-ignore: ['dependabot/**']
+    # CI owns main push ordering; Dependabot pushes cannot read Actions secrets.
+    branches-ignore: ['main', 'dependabot/**']
   pull_request_target:
     types: [opened, reopened, ready_for_review, closed, review_requested]
   issues:
@@ -15,9 +15,7 @@ on:
     types: [created]
   workflow_run:
     workflows: [CI, Package, Release, Publish Update Feed]
-    types: [in_progress, completed]
-  release:
-    types: [published]
+    types: [completed]
 
 permissions:
   contents: read
@@ -27,8 +25,12 @@ jobs:
   notify:
     # Fork review events have no repository secrets; lifecycle and conversation comments still notify.
     if: >-
-      !startsWith(github.event_name, 'pull_request_review') ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (!startsWith(github.event_name, 'pull_request_review') ||
+       github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name != 'workflow_run' ||
+       ((github.event.workflow_run.head_branch == 'main' ||
+         (github.event.workflow_run.name == 'Publish Update Feed' && github.event.workflow_run.event == 'release')) &&
+        contains(fromJSON('["push","workflow_dispatch","workflow_run","release"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

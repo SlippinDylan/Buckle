@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').slice(0, 240);
 const escape = value => clean(value).replace(/([\\`*_~|<>@\[\]])/g, '\\$1');
 const workflows = {
-  CI: { label: '检查流程', job: 'Build Debug app' },
-  Package: { label: '测试打包流程', job: 'Build DMG' },
-  Release: { label: '正式发布流程', job: 'Publish GitHub Release' },
-  'Publish Update Feed': { label: '更新源与 Homebrew 同步流程', job: 'Synchronize distribution metadata' },
+  CI: { label: '检查', job: 'Build Debug app' },
+  Package: { label: '测试打包', job: 'Build DMG' },
+  Release: { label: '发行', job: 'Publish GitHub Release' },
+  'Publish Update Feed': { label: 'Sparkle 与 Homebrew 同步', job: 'Synchronize distribution metadata' },
 };
 const conclusions = {
   success: '成功', failure: '失败', cancelled: '已取消', timed_out: '超时',
@@ -24,6 +24,14 @@ function repository(event) {
 function identifier(value) {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Invalid GitHub event identifier.');
   return value;
+}
+
+export function reportsRun(event) {
+  const run = event.workflow_run;
+  return event.action === 'completed' && Object.hasOwn(workflows, run.name) &&
+    (run.head_branch === 'main' || (run.name === 'Publish Update Feed' && run.event === 'release')) && (run.name === 'CI'
+      ? ['push', 'workflow_dispatch'].includes(run.event)
+      : ['push', 'workflow_dispatch', 'workflow_run', 'release'].includes(run.event));
 }
 
 export function notification(eventName, event) {
@@ -56,17 +64,35 @@ export function notification(eventName, event) {
       break;
     case 'workflow_run': {
       const run = event.workflow_run;
-      if (!Object.hasOwn(workflows, run.name) || !['in_progress', 'completed'].includes(event.action)) return null;
-      const started = event.action === 'in_progress';
+      if (!reportsRun(event)) return null;
       // Publication remains successful if requesting the separate distribution workflow fails later.
+      if (run.name === 'CI' && run.conclusion === 'success') return null;
       const published = run.name === 'Release' && run.stageConclusion === 'success';
-      const result = published ? 'success' : run.conclusion === 'success' && run.name !== 'CI' ? run.stageConclusion : run.conclusion;
-      if (!started && !Object.hasOwn(conclusions, result)) throw new Error('Missing or unknown workflow stage conclusion.');
-      title = `${workflows[run.name].label}${started ? '已开始' : `已结束：${conclusions[result]}`}`;
+      let result = published ? 'success' : run.conclusion === 'success' && run.name !== 'CI' ? run.stageConclusion : run.conclusion;
+      let label = workflows[run.name].label;
+      if (published) {
+        if (!run.distributionRequestConclusion || ['success', 'skipped'].includes(run.distributionRequestConclusion)) return null;
+        label = '分发触发';
+        result = run.distributionRequestConclusion;
+      }
+      if (run.name === 'Release' && !published) {
+        if (run.buildConclusion && !['success', 'skipped'].includes(run.buildConclusion)) {
+          label = '打包';
+          result = run.buildConclusion;
+        } else if (run.gateConclusion && !['success', 'skipped'].includes(run.gateConclusion)) {
+          label = '发行前检查';
+          result = run.gateConclusion;
+        } else if (run.stageConclusion && run.stageConclusion !== 'skipped') {
+          result = run.stageConclusion;
+        } else return null;
+      }
+      if (run.name === 'Publish Update Feed' && run.stageConclusion === 'skipped') return null;
+      if (!Object.hasOwn(conclusions, result)) throw new Error('Missing or unknown workflow stage conclusion.');
+      title = `${label}${conclusions[result]}`;
       detail = `${run.head_branch} · ${String(run.head_sha).slice(0, 7)} · #${run.run_number}`;
-      if (!started && run.name === 'CI' && run.stageConclusion === 'skipped') detail += ' · App 编译已跳过';
-      if (!started && run.name === 'Package' && run.stageConclusion !== 'success') detail += ' · 未确认生成安装包';
-      if (!started && published) {
+      if (run.name === 'CI' && run.stageConclusion === 'skipped') detail += ' · App 编译已跳过';
+      if (run.name === 'Package' && run.stageConclusion !== 'success') detail += ' · 未确认生成安装包';
+      if (published) {
         detail += ' · GitHub Release 已发布，分发同步另行通知';
         if (run.distributionRequestConclusion && !['success', 'skipped'].includes(run.distributionRequestConclusion)) {
           detail += ` · 分发触发${conclusions[run.distributionRequestConclusion]}，可单独重跑`;
@@ -74,14 +100,10 @@ export function notification(eventName, event) {
         if (run.conclusion !== 'success') detail += ` · 整体流程${conclusions[run.conclusion]}`;
       }
       url = `${base}/actions/runs/${identifier(run.id)}`;
-      color = started ? color : result === 'success' ? 0x57f287 : ['failure', 'timed_out'].includes(result) ? 0xed4245 : 0x99aab5;
+      color = result === 'success' ? 0x57f287 : ['failure', 'timed_out'].includes(result) ? 0xed4245 : 0x99aab5;
       break;
     }
-    case 'release':
-      title = 'GitHub Release 已发布';
-      detail = `${event.release.tag_name} · 更新源与 Homebrew 同步另行通知`;
-      url = `${base}/releases`;
-      break;
+    case 'release': return null;
     default: return null;
   }
   return {
@@ -92,30 +114,53 @@ export function notification(eventName, event) {
 }
 
 export function stageStartNotification(name, environment) {
+  return stageNotification(name, 'start', environment);
+}
+
+export function stageResultNotification(name, result, environment) {
+  if (!['success', 'failure'].includes(result)) throw new Error('Unknown stage result.');
+  return stageNotification(name, result, environment);
+}
+
+export function publicationSuccessNotification(environment) {
+  return stageNotification('Release', 'success', environment, '发行');
+}
+
+function stageNotification(name, result, environment, label) {
   if (!Object.hasOwn(workflows, name)) throw new Error('Unknown workflow stage.');
-  if (!/^[a-f0-9]{40}$/.test(environment.GITHUB_SHA ?? '')) throw new Error('Invalid build commit SHA.');
+  const sourceSHA = environment.RELEASE_SHA ?? environment.GITHUB_SHA;
+  if (!/^[a-f0-9]{40}$/.test(sourceSHA ?? '')) throw new Error('Invalid build commit SHA.');
   const runId = Number(environment.GITHUB_RUN_ID);
   identifier(runId);
   const repo = repository({ repository: { full_name: environment.GITHUB_REPOSITORY } });
   const labels = {
-    CI: 'App 检查与编译', Package: '测试 App 与 DMG 构建', Release: 'GitHub Release 发布',
-    'Publish Update Feed': '更新源与 Homebrew 同步',
+    CI: '检查', Package: '测试打包', Release: '打包',
+    'Publish Update Feed': 'Sparkle 与 Homebrew 同步',
   };
   return {
     username: 'Buckle',
     allowed_mentions: { parse: [] },
     embeds: [{
-      title: `Buckle · ${labels[name]}阶段已开始`,
-      description: `${escape(repo)}\n${escape(environment.GITHUB_REF_NAME)} · ${environment.GITHUB_SHA.slice(0, 7)}`,
+      title: `Buckle · ${label ?? labels[name]}${result === 'start' ? '已开始' : conclusions[result]}`,
+      description: `${escape(repo)}\n${escape(environment.GITHUB_REF_NAME)} · ${sourceSHA.slice(0, 7)}`,
       url: `https://github.com/${repo}/actions/runs/${runId}`,
-      color: 0x5865f2,
+      color: result === 'start' ? 0x5865f2 : result === 'success' ? 0x57f287 : 0xed4245,
     }],
   };
 }
 
+export function ciStartNotifications(event, environment) {
+  const payloads = [];
+  if (environment.GITHUB_EVENT_NAME === 'push' && environment.GITHUB_RUN_ATTEMPT === '1') {
+    payloads.push(notification('push', event));
+  }
+  payloads.push(stageStartNotification('CI', environment));
+  return payloads;
+}
+
 export async function enrichWorkflowResult(event, token, fetcher = fetch) {
   const run = event.workflow_run;
-  if (event.action !== 'completed' || !Object.hasOwn(workflows, run.name)) return;
+  if (!reportsRun(event)) return;
   if (!token) throw new Error('Missing Actions token for workflow result.');
   const endpoint = `https://api.github.com/repos/${repository(event)}/actions/runs/${identifier(run.id)}/attempts/${identifier(run.run_attempt)}/jobs?per_page=100`;
   let response;
@@ -132,13 +177,20 @@ export async function enrichWorkflowResult(event, token, fetcher = fetch) {
   }
   const jobs = body.jobs.filter(job => job.name === workflows[run.name].job);
   // Early failures and cancellations can prevent the stage from being created.
-  if (jobs.length === 0 && run.conclusion !== 'success') return;
-  if (jobs.length !== 1 || !Object.hasOwn(conclusions, jobs[0].conclusion)) throw new Error('Expected exactly one completed workflow stage.');
+  if (jobs.length === 0 && run.conclusion !== 'success' && run.name !== 'Release') return;
+  if ((jobs.length !== 1 && !(run.name === 'Release' && jobs.length === 0 && run.conclusion !== 'success')) || (jobs.length === 1 && !Object.hasOwn(conclusions, jobs[0].conclusion))) throw new Error('Expected exactly one completed workflow stage.');
   if (run.conclusion === 'success' && !['success', 'skipped', 'neutral'].includes(jobs[0].conclusion)) {
     throw new Error('Workflow success disagrees with its stage result.');
   }
-  run.stageConclusion = jobs[0].conclusion;
+  if (jobs.length === 1) run.stageConclusion = jobs[0].conclusion;
   if (run.name === 'Release') {
+    for (const [property, name] of [['buildConclusion', 'Build release installer'], ['gateConclusion', 'Validate release request']]) {
+      const stages = body.jobs.filter(job => job.name === name);
+      if (stages.length > 1 || (stages.length === 1 && !Object.hasOwn(conclusions, stages[0].conclusion))) {
+        throw new Error('Expected at most one completed release stage.');
+      }
+      if (stages.length === 1) run[property] = stages[0].conclusion;
+    }
     const requests = body.jobs.filter(job => job.name === 'Request distribution synchronization');
     if (requests.length > 1 || (requests.length === 1 && !Object.hasOwn(conclusions, requests[0].conclusion))) {
       throw new Error('Expected at most one completed distribution request stage.');
@@ -168,19 +220,30 @@ export async function send(payload, webhook, fetcher = fetch) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    let payload;
+    let payloads;
     const arguments_ = process.argv.slice(2);
     if (arguments_.length) {
-      if (arguments_.length !== 2 || arguments_[0] !== '--stage-start') {
-        throw new Error('Use --stage-start <workflow name> or no arguments for webhook events.');
+      if (arguments_.length === 1 && arguments_[0] === '--ci-start') {
+        const event = process.env.GITHUB_EVENT_NAME === 'push'
+          ? JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8')) : {};
+        payloads = ciStartNotifications(event, process.env);
+      } else if (arguments_.length === 1 && arguments_[0] === '--publication-success') {
+        payloads = [publicationSuccessNotification(process.env)];
+      } else if (arguments_.length === 2 && arguments_[0] === '--stage-start') {
+        payloads = [stageStartNotification(arguments_[1], process.env)];
+      } else if (arguments_.length === 3 && arguments_[0] === '--stage-result') {
+        payloads = [stageResultNotification(arguments_[1], arguments_[2], process.env)];
+      } else {
+        throw new Error('Use --ci-start, --publication-success, --stage-start <workflow name>, --stage-result <workflow name> <success|failure>, or no arguments.');
       }
-      payload = stageStartNotification(arguments_[1], process.env);
     } else {
       const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
       if (process.env.GITHUB_EVENT_NAME === 'workflow_run') await enrichWorkflowResult(event, process.env.GITHUB_TOKEN);
-      payload = notification(process.env.GITHUB_EVENT_NAME, event);
+      payloads = [notification(process.env.GITHUB_EVENT_NAME, event)];
     }
-    if (payload) await send(payload, process.env.DISCORD_WEBHOOK_URL);
+    for (const payload of payloads) {
+      if (payload) await send(payload, process.env.DISCORD_WEBHOOK_URL);
+    }
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

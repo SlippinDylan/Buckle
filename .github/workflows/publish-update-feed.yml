@@ -38,6 +38,7 @@ jobs:
           path: build/published-source
           persist-credentials: false
       - name: Report actual stage start
+        continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: node .github/scripts/discord-notify.mjs --stage-start "Publish Update Feed"
