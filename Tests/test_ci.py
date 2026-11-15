@@ -135,5 +135,29 @@ class PackagingCIGateTests(unittest.TestCase):
         self.assertIn('/attempts/3/jobs?', gh.call_args.args[1])
 
 
+class RequiredStatusTests(unittest.TestCase):
+    def test_required_check_rejects_failed_or_unexpectedly_skipped_builds(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        job = workflow.split('\n  check:\n', 1)[1]
+        self.assertIn('needs: [baseline, build]', job)
+        self.assertIn('if: always()', job)
+        script = job.split('        run: |\n', 1)[1]
+        script = '\n'.join(line[10:] for line in script.splitlines())
+        for baseline, required, build, success in [
+            ('success', 'true', 'success', True),
+            ('success', 'false', 'skipped', True),
+            ('failure', 'false', 'skipped', False),
+            ('success', 'true', 'failure', False),
+            ('success', 'true', 'skipped', False),
+            ('success', 'true', 'cancelled', False),
+            ('success', '', 'skipped', False),
+        ]:
+            with self.subTest(baseline=baseline, required=required, build=build):
+                result = subprocess.run(['bash', '-e', '-c', script], capture_output=True,
+                                        env={'BASELINE_RESULT': baseline, 'BUILD_REQUIRED': required,
+                                             'BUILD_RESULT': build})
+                self.assertEqual(result.returncode == 0, success)
+
+
 if __name__ == '__main__':
     unittest.main()
