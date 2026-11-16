@@ -243,7 +243,9 @@ actor FinderMoveRunner {
 
 @MainActor
 enum FinderActionAlert {
-    static func make(_ error: Error) -> NSAlert {
+    static func make(
+        _ error: Error, folderIcon: () -> NSImage = { NSWorkspace.shared.icon(for: UTType.folder) }
+    ) -> NSAlert {
         if error is PermissionRequirement { return permissionAlert(error) }
         let alert = NSAlert(error: error)
         if error is FinderActionRequest.RequestError {
@@ -255,7 +257,7 @@ enum FinderActionAlert {
         }
         alert.alertStyle = .critical
         if let issue = error as? FinderMoveError, issue.concernsFolder {
-            alert.icon = NSWorkspace.shared.icon(for: UTType.folder)
+            alert.icon = folderIcon()
         } else {
             alert.icon = NSApp.applicationIconImage
         }

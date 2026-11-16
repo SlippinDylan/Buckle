@@ -31,12 +31,20 @@ enum FinderMoveCheck {
         for issue: FinderMoveError in [
             .targetUnavailable, .directoryRequired, .destination(CocoaError(.fileReadNoSuchFile)),
         ] {
-            let folder = FinderActionAlert.make(issue)
+            let icon = NSImage(size: NSSize(width: 32, height: 32))
+            var iconRequests = 0
+            let folder = FinderActionAlert.make(issue) {
+                iconRequests += 1
+                return icon
+            }
             precondition(issue.concernsFolder && folder.alertStyle == .critical)
-            precondition(folder.icon.tiffRepresentation == NSWorkspace.shared.icon(for: .folder).tiffRepresentation)
+            // System icons may contain different cached representations on different hosts.
+            precondition(iconRequests == 1 && folder.icon === icon)
         }
         for issue: FinderMoveError in [.clipboardChanged, .commandUnavailable, .handoffFailed] {
-            let app = FinderActionAlert.make(issue)
+            let app = FinderActionAlert.make(issue) {
+                preconditionFailure("An application error must not request a folder icon")
+            }
             precondition(!issue.concernsFolder && app.alertStyle == .critical)
             precondition(app.icon === NSApp.applicationIconImage)
         }
