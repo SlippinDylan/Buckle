@@ -64,6 +64,8 @@ This removes only the setup dismissal record, leaving other settings, Finder dat
 
 Manage launch at login and app language under **Settings → General**. The interface follows macOS by default, or you can choose English, Simplified Chinese, Traditional Chinese, Japanese, Korean, German, French, or Spanish. Restart Buckle to apply a language change.
 
+Under **Settings → General → Dock**, enable **Middle-click to quit apps** (off by default), then middle-click a running app icon in the Dock. The same enable switch is available in the menu bar. Its **Middle-click Action** submenu remembers either **Quit Normally** (default) or **Force Quit…**; clicks use this choice without opening an action menu. Normal quit allows save prompts or cancellation. Force Quit asks for confirmation each time and warns that unsaved changes may be lost; Cancel does nothing. After confirmation, Buckle revalidates the same app instance and force-quits only that app, without terminating helpers, automatic escalation, retries, or extra permissions. Finder, Dock, WindowManager, and Buckle are excluded. Accessibility access is required; if the mouse filter cannot start, the setting offers an explicit Input Monitoring request. Dragging does not quit; a fast first click may pass through while the icon is identified. These two new features still need testing in an installed build on supported macOS versions; macOS 15 is the minimum target, not a compatibility test result.
+
 Under **Settings → Mouse Reset**, you can add or remove applications and set the delay before reopening them: 0–60 seconds, with a default of 3 seconds. Changes are saved automatically; editing is disabled during a reset.
 
 <p align="center">

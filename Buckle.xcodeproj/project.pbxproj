@@ -10,6 +10,10 @@
 		"4C97D9AFB8FD8BE684508FE8" = { "isa" = "PBXBuildFile"; "fileRef" = "4651BFF343DCFD6C5BEAFE25"; };
 		"E3128FC659DB5FF0F6B1F2BD" = { "isa" = "PBXFileReference"; "path" = "App/NewTextFileService.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
 		"330C93820A0A0FC27117BCF0" = { "isa" = "PBXBuildFile"; "fileRef" = "E3128FC659DB5FF0F6B1F2BD"; };
+		"0B2FD953EEA22C08BDFCB44D" = { "isa" = "PBXFileReference"; "path" = "App/Core/DockClick.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
+		"35B7C9EAC63FBAF58D5699E7" = { "isa" = "PBXBuildFile"; "fileRef" = "0B2FD953EEA22C08BDFCB44D"; };
+		"8D633F2E1CD839EDED188625" = { "isa" = "PBXFileReference"; "path" = "App/DockMiddleClickController.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
+		"E739E5198BDA160B72880E54" = { "isa" = "PBXBuildFile"; "fileRef" = "8D633F2E1CD839EDED188625"; };
 
 		"BE830A4824D04C6198B95203" = { "isa" = "PBXFileReference"; "path" = "App/OnboardingWindowController.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
 		"BE830A4824D04C6198B95204" = { "isa" = "PBXBuildFile"; "fileRef" = "BE830A4824D04C6198B95203"; };
@@ -185,6 +189,8 @@
 			"isa" = "PBXGroup";
 			"sourceTree" = "<group>";
 			"children" = (
+				"8D633F2E1CD839EDED188625",
+				"0B2FD953EEA22C08BDFCB44D",
 				"E3128FC659DB5FF0F6B1F2BD",
 				"4651BFF343DCFD6C5BEAFE25",
 				"BE830A4824D04C6198B95203",
@@ -833,6 +839,8 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"E739E5198BDA160B72880E54",
+				"35B7C9EAC63FBAF58D5699E7",
 				"330C93820A0A0FC27117BCF0",
 				"18EAAFF478B6BE87715C1BC3",
 				"BE830A4824D04C6198B95204",

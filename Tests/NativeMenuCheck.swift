@@ -28,13 +28,30 @@ enum NativeMenuCheck {
         var openedCategories: [ApplicationSettingsViewController.Category?] = []
         var memoryRequests = 0
         var mouseRequests = 0
+        let dockSuite = "Buckle.NativeMenuCheck.Dock.\(UUID().uuidString)"
+        guard let dockDefaults = UserDefaults(suiteName: dockSuite) else {
+            preconditionFailure("Cannot create isolated Dock preferences")
+        }
+        defer { dockDefaults.removePersistentDomain(forName: dockSuite) }
+        let dock = DockMiddleClickController(
+            lifecycle: lifecycle, defaults: dockDefaults, accessibilityGranted: { false })
         let controller = StatusMenuController(
             memoryPanel: panel, mouseReset: mouse, menuBarRestart: restart,
-            finder: finder, lifecycle: lifecycle,
+            finder: finder, lifecycle: lifecycle, dock: dock,
             openMemory: { memoryRequests += 1 }, openSettings: { openedCategories.append($0) },
             resetMouse: { mouseRequests += 1 })
         let menu = NSMenu()
         controller.menuNeedsUpdate(menu)
+        guard let quitActions = menu.item(withTitle: localized("dock.quit.action"))?.submenu else {
+            preconditionFailure("Missing Dock action submenu")
+        }
+        precondition(quitActions.items.map(\.title) == [localized("dock.quit.normal"), localized("dock.quit.force")])
+        precondition(quitActions.items.map(\.state) == [.on, .off])
+        quitActions.performActionForItem(at: 1)
+        precondition(dock.quitAction == .force)
+        controller.menuNeedsUpdate(menu)
+        precondition(menu.item(withTitle: localized("dock.quit.action"))?.submenu?.items.map(\.state) == [.off, .on])
+        precondition(!dock.isEnabled, "Selecting an action must not enable event filtering")
         precondition(
             menu.items.filter(\.isSectionHeader).map(\.title) == [
                 localized("menu.system"), localized("menu.applications"), localized("settings.finder.actions"),
@@ -362,7 +379,7 @@ enum NativeMenuCheck {
         precondition(
             ApplicationUpdateController().status == nil, "Debug updates remain disabled without a development message")
         let switches = descendants(of: settings.view).compactMap { $0 as? NSSwitch }
-        precondition(switches.count == 2)
+        precondition(switches.count == 3)
         for control in switches {
             guard let row = control.superview as? NSStackView else {
                 preconditionFailure("A switch must belong to a settings row")

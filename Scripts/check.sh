@@ -64,7 +64,7 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -I "$permission_support_bin" -I "$permission_support_bin/Modules" \
     -L "$permission_support_bin" -lBucklePermissionSupport \
     -Xlinker -rpath -Xlinker "$(pwd)/$sparkle_framework" -target "$(uname -m)-apple-macos15.0" \
-    App/CommandRunner.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift App/OnboardingWindowController.swift \
+    App/CommandRunner.swift App/DockMiddleClickController.swift App/StatusMenuController.swift App/ApplicationSettingsViewController.swift App/ApplicationUpdateController.swift App/OnboardingWindowController.swift \
     App/BrowserLauncher.swift App/FinderExtensionController.swift App/MouseResetController.swift App/MenuBarRestartController.swift \
     App/AutomationPermission.swift App/SystemMemoryPanel.swift App/Localization.swift App/Core/*.swift Tests/NativeMenuCheck.swift \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker build/Checks/native-menu-info.plist \
@@ -74,6 +74,10 @@ xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos
     App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift App/NewTextFileService.swift App/Localization.swift \
     Tests/NewTextFileCheck.swift -o build/Checks/new-text-file
 build/Checks/new-text-file
+xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
+    App/Core/DockClick.swift App/Core/ApplicationLifecycle.swift App/DockMiddleClickController.swift App/Localization.swift \
+    Tests/DockMiddleClickCheck.swift -o build/Checks/dock-middle-click
+build/Checks/dock-middle-click
 xcrun swift-format lint --strict --recursive App FinderExtension Support Tests Package.swift
 for script in Scripts/*.sh; do bash -n "$script"; done
 plutil -lint App/Info.plist App/Buckle.entitlements FinderExtension/Info.plist FinderExtension/BuckleFinder.entitlements Buckle.xcodeproj/project.pbxproj

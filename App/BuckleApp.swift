@@ -19,14 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let lifecycle = ApplicationLifecycle()
     private lazy var mouseReset = MouseResetController(lifecycle: lifecycle)
     private lazy var menuBarRestart = MenuBarRestartController(lifecycle: lifecycle)
+    private lazy var dock = DockMiddleClickController(lifecycle: lifecycle)
     private lazy var finderActions = FinderActionService(lifecycle: lifecycle)
     private let permissionGuidance = PermissionGuidance()
     private lazy var settings = ApplicationSettingsWindowController(
         memoryPanel: systemMemoryPanel, finder: finderExtension,
-        updates: updates, lifecycle: lifecycle, permissionGuidance: permissionGuidance)
+        updates: updates, lifecycle: lifecycle, permissionGuidance: permissionGuidance, dock: dock)
     private lazy var statusMenu = StatusMenuController(
         memoryPanel: systemMemoryPanel, mouseReset: mouseReset,
-        menuBarRestart: menuBarRestart, finder: finderExtension, lifecycle: lifecycle,
+        menuBarRestart: menuBarRestart, finder: finderExtension, lifecycle: lifecycle, dock: dock,
         openMemory: { [weak self] in Task { await self?.showSystemMemoryPanel() } },
         openSettings: { [weak self] category in self?.showSettings(category: category) },
         resetMouse: { [weak self] in self?.showMouseReset() })
@@ -50,6 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         ownsApplicationState = true
+        dock.onDrained = { [weak self] in
+            guard let self, self.lifecycle.isActive(.dockClick) else { return }
+            self.lifecycle.end(.dockClick)
+        }
+        dock.refresh()
         let launchEvent = NSAppleEventManager.shared().currentAppleEvent
         let launchedAsLoginItem =
             launchEvent?.eventID == kAEOpenApplication
@@ -121,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         guard ownsApplicationState else { return }
+        dock.refresh()
         Task { await finderExtension.refresh() }
         Task { await systemMemoryPanel.refreshPermissions() }
         settings.refresh()
@@ -142,6 +149,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard ownsApplicationState else { return .terminateNow }
         onboardingWindow?.suspendForTermination()
         permissionGuidance.close()
+        // Finish a captured mouse pair before releasing the filter on normal quit.
+        dock.suspend()
+        if !dock.isDrained { _ = lifecycle.begin(.dockClick) }
         // Sparkle's quit event uses this same gate; no separate update-only busy state is needed.
         if lifecycle.requestTermination() { prepareToTerminate() }
         return .terminateLater
@@ -170,7 +180,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             NSApp.reply(toApplicationShouldTerminate: allowed)
-            if !allowed { onboardingWindow?.resumeAfterCancelledTermination() }
+            if !allowed {
+                dock.resume()
+                onboardingWindow?.resumeAfterCancelledTermination()
+            }
         }
     }
 

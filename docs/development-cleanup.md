@@ -44,7 +44,7 @@ Buckle 的以下运行数据尤其需要保留。这里展示的是非沙盒主 
 
 | 数据 | 典型位置／机制 | 保护原因 |
 |---|---|---|
-| 应用语言、鼠标重置名单、等待时间和引导关闭记录 | 主 App UserDefaults，`studio.slippindylan.Buckle` 偏好域 | 用户设置，不是缓存 |
+| 应用语言、鼠标重置名单、等待时间、Dock 中键开关和引导关闭记录 | 主 App UserDefaults，`studio.slippindylan.Buckle` 偏好域 | 用户设置，不是缓存 |
 | Finder 菜单配置 | `~/Library/Application Support/Buckle/Finder/menus.json` | 五项开关与运行语言 |
 | 移动请求密钥 | 同目录 `move-request.key` | 既有请求认证身份；删除会改变行为 |
 | 文本新建请求密钥 | 同目录 `new-text-file-request.key` | 独立请求认证身份，不是构建缓存 |

@@ -32,6 +32,7 @@ final class ApplicationSettingsViewController: NSViewController {
         }
     }
 
+    private let dock: DockMiddleClickController
     private let lifecycle: ApplicationLifecycle
     private let memoryPanel: SystemMemoryPanel
     private let finderAutomation: FinderAutomationPermission
@@ -54,6 +55,7 @@ final class ApplicationSettingsViewController: NSViewController {
         permissionGuidance: PermissionGuidance = PermissionGuidance(),
         finderAutomation: FinderAutomationPermission = FinderAutomationPermission(),
         mouseResetPreferences: MouseResetPreferences = MouseResetPreferences(),
+        dock: DockMiddleClickController? = nil,
         presentError: @escaping @MainActor (Error, NSWindow?) -> Void = { error, window in
             let alert = NSAlert(error: error)
             if let window, window.isVisible {
@@ -65,6 +67,7 @@ final class ApplicationSettingsViewController: NSViewController {
         }
     ) {
         self.lifecycle = lifecycle
+        self.dock = dock ?? DockMiddleClickController(lifecycle: lifecycle)
         self.memoryPanel = memoryPanel
         self.finder = finder
         self.finderAutomation = finderAutomation
@@ -132,6 +135,8 @@ final class ApplicationSettingsViewController: NSViewController {
 
     private func observeState() {
         withObservationTracking {
+            _ = dock.isEnabled
+            _ = dock.status
             _ = lifecycle.terminationRequested
             _ = lifecycle.isActive(.mouseReset)
             _ = memoryPanel.permissionStatus
@@ -329,6 +334,41 @@ final class ApplicationSettingsViewController: NSViewController {
         addDescription(localized("language.restart.help"))
         addSection(localized("settings.startup"), rows: startupRows())
         addSection(localized("settings.updates"), rows: updateRows())
+        addSection(
+            localized("dock.settings.title"),
+            rows: [
+                settingRow(
+                    localized("dock.middleClick.title"),
+                    control: toggle(
+                        localized("dock.middleClick.title"), enabled: dock.isEnabled,
+                        action: #selector(changeDockMiddleClick(_:)), available: !lifecycle.terminationRequested)),
+                description(localized("dock.middleClick.help")),
+                description(dock.status.title),
+            ])
+        if dock.status == .accessibilityRequired {
+            contentStack.addArrangedSubview(
+                button(localized("permissions.authorize"), action: #selector(openAccessibility(_:))))
+        } else if dock.status == .inputMonitoringRequired {
+            contentStack.addArrangedSubview(
+                button(localized("permissions.authorize"), action: #selector(openInputMonitoring)))
+        }
+    }
+
+    @objc private func changeDockMiddleClick(_ sender: NSSwitch) {
+        guard !lifecycle.terminationRequested else { return }
+        dock.setEnabled(sender.state == .on)
+        refresh()
+    }
+
+    @objc private func openInputMonitoring() {
+        guard !lifecycle.terminationRequested else { return }
+        CGRequestListenEventAccess()
+        dock.refresh()
+        if dock.status == .inputMonitoringRequired,
+            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func startupRows() -> [NSView] {

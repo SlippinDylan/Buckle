@@ -9,11 +9,11 @@ final class ApplicationSettingsWindowController: NSWindowController, NSToolbarDe
     init(
         memoryPanel: SystemMemoryPanel, finder: FinderExtensionController,
         updates: ApplicationUpdateController, lifecycle: ApplicationLifecycle,
-        permissionGuidance: PermissionGuidance = PermissionGuidance()
+        permissionGuidance: PermissionGuidance = PermissionGuidance(), dock: DockMiddleClickController? = nil
     ) {
         settingsViewController = ApplicationSettingsViewController(
             memoryPanel: memoryPanel, finder: finder, updates: updates, lifecycle: lifecycle,
-            permissionGuidance: permissionGuidance
+            permissionGuidance: permissionGuidance, dock: dock
         )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 450),

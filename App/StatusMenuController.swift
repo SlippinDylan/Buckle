@@ -7,6 +7,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     private let mouseReset: MouseResetController
     private let menuBarRestart: MenuBarRestartController
     private let finder: FinderExtensionController
+    private let dock: DockMiddleClickController
     private let lifecycle: ApplicationLifecycle
     private let openMemory: () -> Void
     private let openSettings: (ApplicationSettingsViewController.Category?) -> Void
@@ -17,7 +18,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     init(
         memoryPanel: SystemMemoryPanel, mouseReset: MouseResetController,
         menuBarRestart: MenuBarRestartController, finder: FinderExtensionController,
-        lifecycle: ApplicationLifecycle,
+        lifecycle: ApplicationLifecycle, dock: DockMiddleClickController,
         openMemory: @escaping () -> Void,
         openSettings: @escaping (ApplicationSettingsViewController.Category?) -> Void,
         resetMouse: @escaping () -> Void
@@ -26,6 +27,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         self.mouseReset = mouseReset
         self.menuBarRestart = menuBarRestart
         self.finder = finder
+        self.dock = dock
         self.lifecycle = lifecycle
         self.openMemory = openMemory
         self.openSettings = openSettings
@@ -101,6 +103,22 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: localized("menu.applications")))
         menu.addItem(browserMenu(enabled: acceptingWork))
+        menu.addItem(
+            action(localized("dock.middleClick.title"), symbol: "computermouse", enabled: acceptingWork) { owner in
+                owner.dock.setEnabled(!owner.dock.isEnabled)
+            })
+        menu.items.last?.state = dock.isEnabled ? .on : .off
+        let dockActions = NSMenuItem(title: localized("dock.quit.action"), action: nil, keyEquivalent: "")
+        let dockSubmenu = NSMenu(title: dockActions.title)
+        dockSubmenu.autoenablesItems = false
+        for choice in DockQuitAction.allCases {
+            let title = choice == .normal ? localized("dock.quit.normal") : localized("dock.quit.force")
+            let item = action(title, enabled: acceptingWork) { owner in owner.dock.setQuitAction(choice) }
+            item.state = dock.quitAction == choice ? .on : .off
+            dockSubmenu.addItem(item)
+        }
+        dockActions.submenu = dockSubmenu
+        menu.addItem(dockActions)
         menu.addItem(.separator())
         addFinderToggles(to: menu, enabled: acceptingWork)
         menu.addItem(.separator())
