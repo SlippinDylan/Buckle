@@ -58,6 +58,8 @@ Der Befehl entfernt nur den Eintrag zum Schließen des Assistenten. Andere Einst
   </tr>
 </table>
 
+Die vier eigenen Finder-Aktionen verwenden im Finder und im Menü von Buckle dieselben farbigen Symbole; AirDrop behält sein Systemsymbol.
+
 **Neue Textdatei:** Aktiviere die Aktion in der Menüleiste oder Einrichtung und klicke mit rechts auf einen einzelnen gewöhnlichen Ordner oder dessen Hintergrund. Buckle erstellt eine leere `.txt`-Datei mit lokalisiertem Namen, ergänzt bei Namenskonflikten eine Nummer ohne Überschreiben und wählt sie im Finder aus. Dafür ist die Finder-Erweiterung nötig, ohne zusätzliche Bedienungshilfen- oder Automatisierungsberechtigung. Automatisches Umbenennen und das native Widerrufen im Finder werden nicht angeboten.
 
 ## Einstellungen

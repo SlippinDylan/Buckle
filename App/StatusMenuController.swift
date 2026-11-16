@@ -154,6 +154,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 }
             }
             item.identifier = NSUserInterfaceItemIdentifier(finderAction.rawValue)
+            item.image = finderAction.menuImage()
             item.state = finder.configuration.map { $0.isEnabled(finderAction) ? .on : .off } ?? .mixed
             menu.addItem(item)
         }

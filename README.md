@@ -58,6 +58,8 @@ This removes only the setup dismissal record, leaving other settings, Finder dat
   </tr>
 </table>
 
+The four custom Finder actions use matching color icons in Finder and Buckle’s menu-bar menu; AirDrop keeps its system icon.
+
 **New Text File:** enable it in the menu-bar menu or setup, then right-click a single ordinary folder or its background. Buckle creates an empty `.txt` file with a localized name, adds a number if the name is taken without overwriting files, and selects it in Finder. This needs the Finder extension, without extra Accessibility or automation access. Automatic rename and native Finder Undo are not provided.
 
 ## Settings

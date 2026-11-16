@@ -7,6 +7,7 @@
 - Optional middle-click quitting for running apps in the Dock, with synchronized menu-bar and General switches, permission status, and a menu-bar action choice saved between launches: normal quit by default, or force quit with confirmation each time and app-instance revalidation.
 
 ### Changed
+- Added matching native color icons for Open in Terminal, Copy Path, Move Items Here, and New Text File in Finder context menus and the menu-bar menu; AirDrop keeps its system icon.
 - Documented how to clear the setup dismissal record when uninstalling so setup appears after reinstalling; normal upgrades preserve it.
 
 ## [0.3.1] - 2026-11-15

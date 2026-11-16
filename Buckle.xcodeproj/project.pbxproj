@@ -5,6 +5,22 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"82A111DF636323DF9EFAE3C7" = { "isa" = "PBXFileReference"; "path" = "App/FinderMenuIcon.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
+		"613E13A152D1DF860519F391" = { "isa" = "PBXBuildFile"; "fileRef" = "82A111DF636323DF9EFAE3C7"; };
+		"99CCCB00A85680EE91D8E879" = { "isa" = "PBXBuildFile"; "fileRef" = "82A111DF636323DF9EFAE3C7"; };
+		"C13D27A8BEFD223AB8A7EB45" = { "isa" = "PBXFileReference"; "path" = "App/Resources/FinderIcons/finder-copy-path.icon"; "lastKnownFileType" = "folder.iconcomposer.icon"; "sourceTree" = "<group>"; };
+		"18151980D288066EF1632DAF" = { "isa" = "PBXBuildFile"; "fileRef" = "C13D27A8BEFD223AB8A7EB45"; };
+		"2932D6999D990B66D19E6FDE" = { "isa" = "PBXBuildFile"; "fileRef" = "C13D27A8BEFD223AB8A7EB45"; };
+		"4998E79C53C0ADE5580A3B51" = { "isa" = "PBXFileReference"; "path" = "App/Resources/FinderIcons/finder-move-items-here.icon"; "lastKnownFileType" = "folder.iconcomposer.icon"; "sourceTree" = "<group>"; };
+		"4EE5D308798D2D09CA689B4D" = { "isa" = "PBXBuildFile"; "fileRef" = "4998E79C53C0ADE5580A3B51"; };
+		"EB24D32D4A6AF03F7BD34977" = { "isa" = "PBXBuildFile"; "fileRef" = "4998E79C53C0ADE5580A3B51"; };
+		"E24149254C1E34F62D19F176" = { "isa" = "PBXFileReference"; "path" = "App/Resources/FinderIcons/finder-new-text-file.icon"; "lastKnownFileType" = "folder.iconcomposer.icon"; "sourceTree" = "<group>"; };
+		"426953A82A63205036669848" = { "isa" = "PBXBuildFile"; "fileRef" = "E24149254C1E34F62D19F176"; };
+		"FA930EFF9F459EEA3414397F" = { "isa" = "PBXBuildFile"; "fileRef" = "E24149254C1E34F62D19F176"; };
+		"D267D8939E555530BF98B093" = { "isa" = "PBXFileReference"; "path" = "App/Resources/FinderIcons/finder-open-in-terminal.icon"; "lastKnownFileType" = "folder.iconcomposer.icon"; "sourceTree" = "<group>"; };
+		"EA408DBAC56548E8060A3F8B" = { "isa" = "PBXBuildFile"; "fileRef" = "D267D8939E555530BF98B093"; };
+		"EF03E46E40246B200190A905" = { "isa" = "PBXBuildFile"; "fileRef" = "D267D8939E555530BF98B093"; };
+
 		"4651BFF343DCFD6C5BEAFE25" = { "isa" = "PBXFileReference"; "path" = "App/Core/FinderNewTextFile.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
 		"18EAAFF478B6BE87715C1BC3" = { "isa" = "PBXBuildFile"; "fileRef" = "4651BFF343DCFD6C5BEAFE25"; };
 		"4C97D9AFB8FD8BE684508FE8" = { "isa" = "PBXBuildFile"; "fileRef" = "4651BFF343DCFD6C5BEAFE25"; };
@@ -189,6 +205,11 @@
 			"isa" = "PBXGroup";
 			"sourceTree" = "<group>";
 			"children" = (
+				"82A111DF636323DF9EFAE3C7",
+				"C13D27A8BEFD223AB8A7EB45",
+				"4998E79C53C0ADE5580A3B51",
+				"E24149254C1E34F62D19F176",
+				"D267D8939E555530BF98B093",
 				"8D633F2E1CD839EDED188625",
 				"0B2FD953EEA22C08BDFCB44D",
 				"E3128FC659DB5FF0F6B1F2BD",
@@ -238,6 +259,10 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"2932D6999D990B66D19E6FDE",
+				"EB24D32D4A6AF03F7BD34977",
+				"FA930EFF9F459EEA3414397F",
+				"EF03E46E40246B200190A905",
 				"18DEEE60084FF32943165397",
 				"F6ACFEFE3363C7AE46006094",
 			);
@@ -261,6 +286,7 @@
 				"SUPPORTED_PLATFORMS" = "macosx";
 				"CODE_SIGN_ENTITLEMENTS" = "App/Buckle.entitlements";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "Buckle";
+				"ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS" = "YES";
 				"COMBINE_HIDPI_IMAGES" = "YES";
 				"ENABLE_APP_SANDBOX" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
@@ -324,6 +350,7 @@
 				"SUPPORTED_PLATFORMS" = "macosx";
 				"CODE_SIGN_ENTITLEMENTS" = "App/Buckle.entitlements";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "Buckle";
+				"ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS" = "YES";
 				"COMBINE_HIDPI_IMAGES" = "YES";
 				"ENABLE_APP_SANDBOX" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
@@ -648,6 +675,10 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"18151980D288066EF1632DAF",
+				"4EE5D308798D2D09CA689B4D",
+				"426953A82A63205036669848",
+				"EA408DBAC56548E8060A3F8B",
 				"22257A4EAAE14964BFE66D9C",
 				"252BFC86C59C24C827D3C8D6",
 				"114E65961544727AD4172E65",
@@ -779,6 +810,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"99CCCB00A85680EE91D8E879",
 				"4C97D9AFB8FD8BE684508FE8",
 				"6A35D97163484ABD2EEDB01C",
 				"5C88DA4A80215F2E82D8D1DD",
@@ -839,6 +871,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"613E13A152D1DF860519F391",
 				"E739E5198BDA160B72880E54",
 				"35B7C9EAC63FBAF58D5699E7",
 				"330C93820A0A0FC27117BCF0",

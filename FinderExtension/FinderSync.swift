@@ -112,7 +112,7 @@ final class BuckleFinderSync: FIFinderSync {
             if configuration.terminalEnabled, let directory {
                 try add(
                     .terminal, files: [directory], title: localized("finder.terminal.title", language: language),
-                    image: nil, to: menu, actions: &actions)
+                    image: FinderAction.terminal.menuImage(), to: menu, actions: &actions)
             }
             if configuration.copyPathEnabled {
                 let item = NSMenuItem(
@@ -120,6 +120,7 @@ final class BuckleFinderSync: FIFinderSync {
                     keyEquivalent: "")
                 item.target = self
                 item.tag = register(.copy(context.files), in: &actions)
+                item.image = FinderAction.copyPath.menuImage()
                 menu.addItem(item)
             }
             if configuration.newTextFileEnabled, let directory {
@@ -131,6 +132,7 @@ final class BuckleFinderSync: FIFinderSync {
                         action: #selector(performAction(_:)), keyEquivalent: "")
                     item.target = self
                     item.tag = register(.newTextFile(target, key), in: &actions)
+                    item.image = FinderAction.newTextFile.menuImage()
                     menu.addItem(item)
                 } catch {
                     logger.error(
@@ -143,6 +145,7 @@ final class BuckleFinderSync: FIFinderSync {
                     title: localized("finder.move.title", language: language), action: #selector(performAction(_:)),
                     keyEquivalent: "")
                 item.target = self
+                item.image = FinderAction.move.menuImage()
                 item.isEnabled = NSPasteboard.general.canReadObject(
                     forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
                 let request = try FinderActionRequest(

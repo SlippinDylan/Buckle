@@ -58,6 +58,8 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
   </tr>
 </table>
 
+四項自訂 Finder 操作在快顯選單與 Buckle 選單列選單中使用一致的彩色圖像；AirDrop 保留系統圖像。
+
 **新增文字文件：**在選單列或首次設定中開啟，再對單一一般檔案夾或其空白處按右鍵。Buckle 建立使用本地化名稱的空白 `.txt` 檔案，同名時加上編號且不覆寫，並在 Finder 中選取。需要 Finder 延伸功能，不另外要求輔助使用或自動化權限；不提供自動重新命名或 Finder 原生還原。
 
 ## 設定

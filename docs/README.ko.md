@@ -58,6 +58,8 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
   </tr>
 </table>
 
+네 가지 사용자 지정 Finder 동작은 Finder와 Buckle 메뉴 막대 메뉴에서 같은 컬러 아이콘을 사용하며, AirDrop은 시스템 아이콘을 유지합니다.
+
 **새 텍스트 파일:** 메뉴 막대나 설정 가이드에서 켠 다음 일반 폴더 하나 또는 배경을 우클릭하세요. Buckle은 현지화된 이름의 빈 `.txt` 파일을 만들고, 이름이 겹치면 번호를 붙여 덮어쓰지 않으며 Finder에서 선택합니다. Finder 확장이 필요하지만 추가 손쉬운 사용이나 자동화 권한은 필요하지 않습니다. 자동 이름 변경과 Finder 기본 실행 취소는 제공하지 않습니다.
 
 ## 설정

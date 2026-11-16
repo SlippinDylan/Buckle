@@ -58,6 +58,8 @@ Cette commande supprime uniquement la fermeture enregistrée du guide et conserv
   </tr>
 </table>
 
+Les quatre actions Finder personnalisées utilisent les mêmes icônes en couleur dans le Finder et le menu de Buckle ; AirDrop conserve son icône système.
+
 **Nouveau fichier texte :** activez cette action dans la barre des menus ou la configuration, puis faites un clic droit sur un seul dossier ordinaire ou son arrière-plan. Buckle crée un fichier `.txt` vide au nom localisé, ajoute un numéro en cas de conflit sans écraser de fichier, puis le sélectionne dans le Finder. L’extension Finder est nécessaire, sans autorisation supplémentaire d’accessibilité ou d’automatisation. Le renommage automatique et l’annulation native du Finder ne sont pas proposés.
 
 ## Réglages

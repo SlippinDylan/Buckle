@@ -58,6 +58,8 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
   </tr>
 </table>
 
+4つの独自 Finder 操作は、Finder と Buckle のメニューバーメニューで同じカラーアイコンを使います。AirDrop はシステムのアイコンを維持します。
+
 **テキストファイルを作成：**メニューバーまたは設定ガイドで有効にし、単一の通常フォルダまたはその背景を右クリックします。Buckle はローカライズされた名前の空の `.txt` ファイルを作成し、同名の場合は番号を付けて上書きを避け、Finder で選択します。Finder 機能拡張が必要ですが、追加のアクセシビリティやオートメーション権限は不要です。自動的な名前変更と Finder 標準の取り消しは提供しません。
 
 ## 設定

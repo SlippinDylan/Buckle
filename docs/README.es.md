@@ -58,6 +58,8 @@ El comando elimina solo el registro de cierre de la guía y conserva los demás 
   </tr>
 </table>
 
+Las cuatro acciones personalizadas del Finder usan los mismos iconos en color en el Finder y en el menú de Buckle; AirDrop conserva su icono del sistema.
+
 **Nuevo archivo de texto:** actívalo en la barra de menús o la configuración inicial y haz clic derecho en una sola carpeta normal o en su fondo. Buckle crea un archivo `.txt` vacío con nombre localizado, añade un número si el nombre existe sin sobrescribir archivos y lo selecciona en el Finder. Requiere la extensión del Finder, sin permisos adicionales de accesibilidad o automatización. No ofrece cambio de nombre automático ni deshacer nativo del Finder.
 
 ## Ajustes

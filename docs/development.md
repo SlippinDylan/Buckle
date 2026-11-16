@@ -32,7 +32,7 @@ Sparkle 2.10.0 通过 Xcode SPM 依赖仅链接到主应用，锁文件纳入 Gi
 
 ## 检查与构建
 
-`python3 -B Scripts/check.py` 执行工程基线、本地化、Python 与 Node 离线测试、Shell 语法及 diff 检查，不编译 App。`bash Scripts/check.sh` 另外包含核心单元测试、Finder 配置与 URL 路由测试、真实沙盒配置读写权限检查、Release 签名下实际加载 Sparkle 的检查、更新配置与密钥匹配测试、官方 Sparkle 工具生成签名清单及拒绝篡改的检查、Swift 6 主应用和扩展源码类型检查、鼠标重置及部分退出失败回滚检查、系统内存窗口事件构造、权限拒绝和跨实例偏好恢复检查、格式、多语言、版本配置、通知脚本测试及 plist 检查。它通过 `Scripts/resolve-dependencies.sh` 解析锁定的 SPM 依赖，需要网络或已有缓存；不会启动应用界面或完整构建 Buckle。更新工具检查只生成临时测试归档，不使用用户私钥，不启动测试程序。
+`python3 -B Scripts/check.py` 执行工程基线、本地化、Python 与 Node 离线测试、Shell 语法及 diff 检查，不编译 App。`bash Scripts/check.sh` 另外包含核心单元测试、Finder 配置与 URL 路由测试、真实沙盒配置读写权限检查、Release 签名下实际加载 Sparkle 的检查、更新配置与密钥匹配测试、官方 Sparkle 工具生成签名清单及拒绝篡改的检查、Swift 6 主应用和扩展源码类型检查、鼠标重置及部分退出失败回滚检查、系统内存窗口事件构造、权限拒绝和跨实例偏好恢复检查、格式、多语言、版本配置、通知脚本测试及 plist 检查。`Scripts/check-menu-icons.sh` 校验主应用 Debug／Release 的主图标与保留全部图标设置，并分别按主应用（含 `Buckle.icon`）和 Finder 扩展的资源参数实际编译图标，通过临时 Bundle 验证四项菜单图标均可加载；这不执行完整应用构建或 Finder 实机验收。它通过 `Scripts/resolve-dependencies.sh` 解析锁定的 SPM 依赖，需要网络或已有缓存；不会启动应用界面或完整构建 Buckle。更新工具检查只生成临时测试归档，不使用用户私钥，不启动测试程序。
 
 Swift 改动后执行：
 
@@ -285,7 +285,9 @@ Release 使用 ad-hoc 签名并保留 Hardened Runtime。ad-hoc 没有 Team ID�
 
 状态菜单使用 `NSStatusItem.menu` 与 `NSMenu`，以原生 sectionHeader 和分隔线按系统工具、应用启动、访达右键菜单分组，底部相邻显示设置和退出，功能入口始终显示，不提供隐藏开关；访达右键菜单的五个功能通过菜单勾选项启停，首次使用默认关闭，保留已有配置。不再使用 `NSPopover`。设置窗口沿用 Alcove 的 400×450 内容尺寸、原生偏好工具栏、卡片行样式与关于页排版；设置包含通用、权限、鼠标重置、关于四页，分别组织偏好、授权与访达扩展状态、重置应用名单、真实版本元数据；访达五项功能开关仍在菜单栏。菜单栏只提供一个设置入口，保留上次选择页；检查更新与关于均在设置窗口内。鼠标进度使用独立窗口，任务和结果不依赖窗口是否可见。
 
-Finder 菜单自定义文字跟随 Buckle 的运行语言，原生 AirDrop 标题仍由系统共享服务提供。右键菜单仅 AirDrop 保留系统图标，终端、复制路径、移动及新建文本文件入口只显示文字。Finder 菜单区分 `.contextualMenuForItems` 和 `.contextualMenuForContainer`。上下文快照放在菜单项中，不在执行时重新读取可能已改变的选区。终端使用公开 `NSWorkspace.open` 将目录 URL 交给系统 Terminal，不拼接 shell 命令。复制路径在扩展内向剪贴板写入纯文本；公共 URL 不接受复制路径操作。普通文件夹才作为终端、移动与新建文本文件的目标，应用包不是普通目标目录。
+Finder 菜单自定义文字跟随 Buckle 的运行语言，原生 AirDrop 标题仍由系统共享服务提供。终端、复制路径、移动及新建文本文件在 Finder 右键菜单和主应用菜单栏菜单中使用同一套 16pt 彩色图标，AirDrop 保留系统图标。Finder 菜单区分 `.contextualMenuForItems` 和 `.contextualMenuForContainer`。上下文快照放在菜单项中，不在执行时重新读取可能已改变的选区。终端使用公开 `NSWorkspace.open` 将目录 URL 交给系统 Terminal，不拼接 shell 命令。复制路径在扩展内向剪贴板写入纯文本；公共 URL 不接受复制路径操作。普通文件夹才作为终端、移动与新建文本文件的目标，应用包不是普通目标目录。
+
+四项图标的 Icon Composer 设计源位于 `App/Resources/FinderIcons/`：`finder-open-in-terminal.icon`、`finder-copy-path.icon`、`finder-move-items-here.icon`、`finder-new-text-file.icon`。主应用和 Finder 扩展的 Resources 均纳入这些原生 `.icon` 文档，由 Xcode 编译为各自的 `Assets.car`，运行时通过 `Bundle.image(forResource:)` 加载并以 16pt 彩色图像显示，不导出 PNG 或增加手工位图资源。主应用 Debug／Release 必须同时保留 `ASSETCATALOG_COMPILER_APPICON_NAME = Buckle` 与 `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES`，后者对应 Apple 编译参数 `--include-all-app-icons`；仅指定 `--app-icon Buckle` 会丢弃其余四项 `.icon` 资源。主图标仍为 Buckle，不将菜单图标设为主图标。后续图标修改以仓库内这些源文件为准，保留桌面原始文件与主应用 `Buckle.icon`。原生资源编译与加载检查不代表 Finder 实机菜单或视觉效果已经验收；两处菜单的图标、明暗外观与系统兼容性仍须实测。
 
 Finder 通过后台 XPC 队列调用菜单的 Objective-C action，不能要求这些回调已经位于 MainActor。扩展在非隔离入口读取菜单项携带的 URL 或 URL 列表，再把值快照交给 MainActor 执行应用打开、剪贴板写入和错误提示；不跨任务传递菜单对象。回归检查通过后台 Objective-C selector 调用真实 action 入口，覆盖空载荷、错误类型和有效 URL／URL 列表；仅替换目录监控注册及最终的应用打开、剪贴板写入操作，验证有效载荷原样交给 MainActor 且各执行一次，不改动用户剪贴板。
 

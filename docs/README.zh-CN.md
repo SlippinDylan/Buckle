@@ -58,6 +58,8 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
   </tr>
 </table>
 
+四项自定义访达操作在右键菜单与 Buckle 菜单栏菜单中使用一致的彩色图标；隔空投送保留系统图标。
+
 **新建文本文档：**在菜单栏或首次引导中开启，再右键单个普通文件夹或其空白区域。Buckle 创建本地化名称的空 `.txt` 文件，遇到同名时编号且不覆盖，并在访达中选中文件。需要 Finder 扩展，不额外要求辅助功能或自动化权限；不提供自动重命名或访达原生撤销。
 
 ## 设置
