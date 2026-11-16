@@ -122,6 +122,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             case .terminal: title = localized("finder.terminal.toggle")
             case .copyPath: title = localized("finder.copyPath.toggle")
             case .move: title = localized("finder.move.toggle")
+            case .newTextFile: title = localized("finder.newTextFile.toggle")
             }
             let item = action(title, enabled: enabled && finder.configuration != nil) { owner in
                 guard !owner.lifecycle.terminationRequested, let configuration = owner.finder.configuration else {

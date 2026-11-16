@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "Resetting mouse utilities: %@";
 "finder.configuration.invalid" = "Finder Configuration Is Damaged";
 "finder.configuration.restore" = "Restore Default Configuration";
-"finder.configuration.restore.help" = "The current configuration will be backed up in Buckle’s Finder configuration folder. Restoring the defaults will then turn off all four Finder context menu features.";
+"finder.configuration.restore.help" = "The current configuration will be backed up in Buckle’s Finder configuration folder. Restoring the defaults will then turn off all Finder context menu features.";
 "cancel" = "Cancel";
 "memory.recovery.show" = "Show Recovery Record";
 "quit.recovery.title" = "Recovery Is Not Complete";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "Your choices have been saved. Open Buckle’s menu to start using it or change settings at any time.";
 "onboarding.permissions.title" = "Permissions and Finder Extension";
 "onboarding.permissions.help" = "Review access before choosing features. Accessibility and automation support actions such as moving files; the Finder extension adds context menu items. Grant access as needed, or continue without it.";
+"finder.newTextFile.title" = "New Text File";
+"finder.newTextFile.toggle" = "New Text File";
+"finder.newTextFile.name" = "New Text Document";
+"finder.newTextFile.directory.changed" = "The destination folder has changed.";
+"finder.newTextFile.already.consumed" = "This creation request has already been handled.";
+"finder.newTextFile.journal.damaged" = "The file creation request record could not be read safely.";
+"finder.newTextFile.created.unavailable" = "The text file was created, but its location could not be confirmed.";
+"finder.newTextFile.retry.help" = "Check the folder and its contents, then use the Finder menu again if needed.";
+"finder.newTextFile.journal.help" = "File creation is paused to prevent duplicate requests. Preserve the request record and check the underlying error before retrying.";
+"finder.newTextFile.authorization.failed" = "New Text File is unavailable: %@";

@@ -19,10 +19,10 @@ Nécessite **macOS 15 ou ultérieur**, sur Apple Silicon ou Intel. Les compilati
 1. Téléchargez `Buckle-<version>.dmg` dans **Assets** de la [dernière version GitHub](https://github.com/SlippinDylan/Buckle/releases/latest). Les archives du code source sont destinées au développement et ne sont pas des installateurs.
 2. Pour une mise à jour, choisissez d’abord « Quitter » dans le menu du Buckle en cours et attendez sa fermeture. Ouvrez le DMG et glissez `Buckle.app` dans « Applications », en remplaçant l’ancienne copie si nécessaire.
 3. Ouvrez `/Applications/Buckle.app`. Buckle apparaît dans la barre des menus sans icône dans le Dock. Conservez une seule copie installée.
-4. Utilisez les outils ou activez les actions Finder dans la barre des menus. Les quatre actions sont désactivées au premier lancement ; vos choix sont ensuite enregistrés.
+4. Utilisez les outils ou activez les actions Finder dans la barre des menus. Les cinq actions sont désactivées au premier lancement ; vos choix sont ensuite enregistrés.
 5. Activez l’extension Finder ou accordez les accès demandés sous **Réglages → Autorisations**. Le statut s’actualise automatiquement ; le texte vert et une coche indiquent un accès accordé ou une extension active.
 
-Le guide de configuration apparaît une seule fois lors d’un lancement normal si vous ne l’avez pas encore fermé ou terminé, y compris pour les utilisateurs existants, dont les réglages sont conservés. Il présente la barre des menus, les actions du Finder et leurs autorisations, le lancement à l’ouverture de session et la recherche automatique de mises à jour. Les modifications sont enregistrées immédiatement. Les quatre actions du Finder restent désactivées tant que vous ne les choisissez pas. Vous pouvez continuer sans autorisation, fermer la fenêtre : le guide ne se rouvre pas automatiquement après un redémarrage ou une mise à niveau. Pour les nouveaux utilisateurs, ignorer le choix des mises à jour laisse la recherche automatique désactivée. Les préférences existantes sont conservées et la recherche manuelle reste disponible dans les versions prenant en charge les mises à jour. La page de fin apparaît dans la même fenêtre ; le bouton pour commencer ouvre le menu de Buckle. Les autorisations figurent sur une page distincte avant les fonctions ; vous pouvez continuer sans les accorder.
+Le guide de configuration apparaît une seule fois lors d’un lancement normal si vous ne l’avez pas encore fermé ou terminé, y compris pour les utilisateurs existants, dont les réglages sont conservés. Il présente la barre des menus, les actions du Finder et leurs autorisations, le lancement à l’ouverture de session et la recherche automatique de mises à jour. Les modifications sont enregistrées immédiatement. Les cinq actions du Finder restent désactivées tant que vous ne les choisissez pas. Vous pouvez continuer sans autorisation, fermer la fenêtre : le guide ne se rouvre pas automatiquement après un redémarrage ou une mise à niveau. Pour les nouveaux utilisateurs, ignorer le choix des mises à jour laisse la recherche automatique désactivée. Les préférences existantes sont conservées et la recherche manuelle reste disponible dans les versions prenant en charge les mises à jour. La page de fin apparaît dans la même fenêtre ; le bouton pour commencer ouvre le menu de Buckle. Les autorisations figurent sur une page distincte avant les fonctions ; vous pouvez continuer sans les accorder.
 
 > [!IMPORTANT]
 > Les compilations utilisent une signature ad hoc et ne sont pas notariées. Une version téléchargée peut nécessiter une autorisation dans Réglages Système ; les accès peuvent devoir être accordés de nouveau après une mise à jour.
@@ -49,7 +49,7 @@ Cette commande supprime uniquement la fermeture enregistrée du guide et conserv
     <td width="64%" align="center"><img src="images/readme/menu-bar.png" width="310" alt="Les outils système dans la barre des menus"></td>
   </tr>
   <tr>
-    <td width="36%"><strong>Agir directement dans le Finder</strong><br><br>Ajoutez AirDrop, Ouvrir dans Terminal, Copier le chemin et Déplacer les éléments ici au menu contextuel du Finder. Terminal s’ouvre dans le dossier sélectionné ou courant ; les chemins multiples sont copiés sur des lignes distinctes.</td>
+    <td width="36%"><strong>Agir directement dans le Finder</strong><br><br>Ajoutez AirDrop, Ouvrir dans Terminal, Copier le chemin, Déplacer les éléments ici et Nouveau fichier texte au menu contextuel du Finder. Terminal s’ouvre dans le dossier sélectionné ou courant ; les chemins multiples sont copiés sur des lignes distinctes.</td>
     <td width="64%" align="center"><img src="images/readme/finder-context-menu.png" width="285" alt="Agir directement dans le Finder"></td>
   </tr>
   <tr>
@@ -57,6 +57,8 @@ Cette commande supprime uniquement la fermeture enregistrée du guide et conserv
     <td width="64%" align="center"><img src="images/readme/browser-language.png" width="580" alt="Lancer les navigateurs dans huit langues"></td>
   </tr>
 </table>
+
+**Nouveau fichier texte :** activez cette action dans la barre des menus ou la configuration, puis faites un clic droit sur un seul dossier ordinaire ou son arrière-plan. Buckle crée un fichier `.txt` vide au nom localisé, ajoute un numéro en cas de conflit sans écraser de fichier, puis le sélectionne dans le Finder. L’extension Finder est nécessaire, sans autorisation supplémentaire d’accessibilité ou d’automatisation. Le renommage automatique et l’annulation native du Finder ne sont pas proposés.
 
 ## Réglages
 

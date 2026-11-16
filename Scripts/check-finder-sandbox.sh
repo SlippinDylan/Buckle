@@ -15,7 +15,7 @@ with open(sys.argv[1], 'wb') as output:
     }, output)
 PY
 xcrun swiftc -parse-as-library -swift-version 6 \
-    App/Core/FinderIntegration.swift Tests/FinderSandboxCheck.swift \
+    App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift Tests/FinderSandboxCheck.swift \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$probe_directory/Info.plist" \
     -o "$probe_directory/probe"
 codesign --force --sign - --entitlements FinderExtension/BuckleFinder.entitlements "$probe_directory/probe"

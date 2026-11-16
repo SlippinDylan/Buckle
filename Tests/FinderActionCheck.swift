@@ -177,8 +177,44 @@ enum FinderActionCheck {
             try await service.handle(FinderActionRequest(action: .terminal, files: [root]))
             preconditionFailure("Action started while quitting")
         } catch CocoaError.userCancelled {}
+        try await verifyTextCreation(in: root)
         print(
             "Finder actions, switches, direct move dispatch, clipboard changes and quit admission verified without launching Terminal or moving files."
         )
     }
+    @MainActor private static func verifyTextCreation(in root: URL) async throws {
+        let lifecycle = ApplicationLifecycle()
+        let configuration = FinderConfiguration(newTextFileEnabled: true)
+        let key = SymmetricKey(size: .bits256)
+        let request = try FinderNewTextFileRequest(target: FinderNewTextFileTarget(directory: root), key: key)
+        let url = root.appendingPathComponent("created.txt")
+        var selected: [URL] = []
+        let service = FinderActionService(
+            lifecycle: lifecycle, configuration: { configuration },
+            createTextFile: { _, _ in url }, revealFile: { selected.append($0) })
+        try await service.handle(request)
+        precondition(selected == [url] && !lifecycle.isActive(.finderAction))
+        let failing = FinderActionService(
+            lifecycle: lifecycle, configuration: { configuration },
+            createTextFile: { _, _ in throw CocoaError(.fileWriteNoPermission) },
+            revealFile: { _ in preconditionFailure("Failed creation was revealed") })
+        do {
+            try await failing.handle(request)
+            preconditionFailure("Creation failure hidden")
+        } catch CocoaError.fileWriteNoPermission {}
+        precondition(!lifecycle.isActive(.finderAction))
+        let disabled = FinderActionService(
+            lifecycle: lifecycle, configuration: { .initial },
+            createTextFile: { _, _ in preconditionFailure("Disabled creation executed") })
+        do {
+            try await disabled.handle(request)
+            preconditionFailure("Disabled creation accepted")
+        } catch CocoaError.featureUnsupported {}
+        precondition(lifecycle.requestTermination())
+        do {
+            try await service.handle(request)
+            preconditionFailure("Creation started while quitting")
+        } catch CocoaError.userCancelled {}
+    }
+
 }

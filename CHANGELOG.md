@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Optional New Text File Finder action creates and selects an empty text file in a single folder, using numbered names without overwriting existing files and rejecting replayed creation requests across restarts.
+
 ### Changed
 - Documented how to clear the setup dismissal record when uninstalling so setup appears after reinstalling; normal upgrades preserve it.
 

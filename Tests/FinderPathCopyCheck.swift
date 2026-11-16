@@ -5,6 +5,7 @@ import os.lock
 @main
 enum FinderPathCopyCheck {
     @MainActor static func main() async throws {
+        try await verifyNewTextFileCallbacks()
         try await verifyBackgroundMenuCallbacks()
         try await verifyConcurrentMenuPublication()
         try verifySharedLanguage()
@@ -25,6 +26,43 @@ enum FinderPathCopyCheck {
         print(
             "Finder proxy menu actions preserve signed snapshots, reject stale tags, and accept background callbacks without changing the user clipboard."
         )
+    }
+
+    @MainActor private static func verifyNewTextFileCallbacks() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { do { try FileManager.default.removeItem(at: root) } catch { preconditionFailure("\(error)") } }
+        let store = FinderConfigurationStore(directory: root.appendingPathComponent("configuration"))
+        try store.save(FinderConfiguration(newTextFileEnabled: true))
+        try store.prepareNewTextFileKey()
+        let key = try store.loadNewTextFileKey()
+        var received: [URL] = []
+        let finder = BuckleFinderSync(observeDirectories: { _ in }, openRequest: { url, _ in received.append(url) })
+        let menu = finder.makeMenu(for: .container(root), store: store)
+        guard let item = menu.items.first, let selector = item.action else {
+            preconditionFailure("Missing new text file action")
+        }
+        precondition(menu.items.count == 1)
+        let proxy = NSMenuItem(title: item.title, action: selector, keyEquivalent: "")
+        proxy.tag = item.tag
+        _ = finder.perform(selector, with: proxy)
+        // Duplicate delivery must retain the same request ID, even though signing occurs at click time.
+        _ = finder.perform(selector, with: proxy)
+        let deadline = ContinuousClock.now + .seconds(2)
+        while received.count < 2, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        precondition(received.count == 2)
+        let requests = try received.map(FinderNewTextFileRequest.init(url:))
+        for request in requests {
+            try request.validate(key: key, now: Date())
+            precondition(request.target.directory == root.standardizedFileURL.resolvingSymlinksInPath())
+        }
+        precondition(requests[0].target.requestID == requests[1].target.requestID)
+        let file = root.appendingPathComponent("ordinary.txt")
+        try Data().write(to: file)
+        precondition(finder.makeMenu(for: .items([file]), store: store).items.isEmpty)
+        _ = finder.perform(selector, with: proxy)
+        try await Task.sleep(for: .milliseconds(20))
+        precondition(received.count == 2, "Expired file creation tag accepted")
     }
 
     @MainActor private static func verifyBackgroundMenuCallbacks() async throws {

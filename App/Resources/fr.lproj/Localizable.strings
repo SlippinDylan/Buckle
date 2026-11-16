@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "Redémarrage des utilitaires de souris : %@";
 "finder.configuration.invalid" = "La configuration du Finder est endommagée";
 "finder.configuration.restore" = "Rétablir la configuration par défaut";
-"finder.configuration.restore.help" = "La configuration actuelle sera sauvegardée dans le dossier de configuration Finder de Buckle. Les réglages par défaut seront ensuite rétablis et les quatre fonctions du menu contextuel du Finder seront désactivées.";
+"finder.configuration.restore.help" = "La configuration actuelle sera sauvegardée dans le dossier de configuration Finder de Buckle. Les réglages par défaut seront ensuite rétablis et toutes les fonctions du menu contextuel du Finder seront désactivées.";
 "cancel" = "Annuler";
 "memory.recovery.show" = "Afficher le fichier de restauration";
 "quit.recovery.title" = "La restauration est incomplète";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "Vos choix ont été enregistrés. Ouvrez le menu de Buckle pour commencer à l’utiliser ou modifier les réglages à tout moment.";
 "onboarding.permissions.title" = "Autorisations et extension du Finder";
 "onboarding.permissions.help" = "Vérifiez les accès avant de choisir les fonctions. L’accessibilité et l’automatisation servent notamment à déplacer des fichiers ; l’extension ajoute le menu contextuel. Autorisez les accès nécessaires ou continuez sans les accorder.";
+"finder.newTextFile.title" = "Nouveau fichier texte";
+"finder.newTextFile.toggle" = "Nouveau fichier texte";
+"finder.newTextFile.name" = "Nouveau document texte";
+"finder.newTextFile.directory.changed" = "Le dossier de destination a changé.";
+"finder.newTextFile.already.consumed" = "Cette demande de création a déjà été traitée.";
+"finder.newTextFile.journal.damaged" = "Le journal des demandes de création ne peut pas être lu correctement.";
+"finder.newTextFile.created.unavailable" = "Le fichier texte a été créé, mais son emplacement ne peut pas être confirmé.";
+"finder.newTextFile.retry.help" = "Vérifiez le dossier et son contenu, puis utilisez à nouveau le menu du Finder si nécessaire.";
+"finder.newTextFile.journal.help" = "La création est suspendue pour éviter les doublons. Conservez le journal et examinez l’erreur.";
+"finder.newTextFile.authorization.failed" = "Nouveau fichier texte indisponible : %@";

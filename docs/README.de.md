@@ -19,10 +19,10 @@ Erfordert **macOS 15 oder neuer** auf Apple Silicon oder Intel. CI-Builds zielen
 1. Lade `Buckle-<version>.dmg` unter **Assets** der [neuesten GitHub-Version](https://github.com/SlippinDylan/Buckle/releases/latest) herunter. Die Quellcodearchive dienen der Entwicklung und sind keine Installationspakete.
 2. Wähle bei einem Update zuerst „Beenden“ im Menü des laufenden Buckle und warte auf das Ende. Öffne das DMG und ziehe `Buckle.app` nach „Programme“. Ersetze bei Bedarf die bisherige Kopie.
 3. Öffne `/Applications/Buckle.app`. Buckle erscheint in der Menüleiste ohne Dock-Symbol. Behalte nur eine installierte Kopie.
-4. Nutze die Werkzeuge oder aktiviere Finder-Aktionen über die Menüleiste. Alle vier Finder-Aktionen sind anfangs ausgeschaltet; deine Auswahl wird gespeichert.
+4. Nutze die Werkzeuge oder aktiviere Finder-Aktionen über die Menüleiste. Alle fünf Finder-Aktionen sind anfangs ausgeschaltet; deine Auswahl wird gespeichert.
 5. Aktiviere unter **Einstellungen → Berechtigungen** die Finder-Erweiterung und erteile angeforderte Zugriffe. Der Status wird automatisch aktualisiert; grüne Schrift und ein Häkchen zeigen erteilte Rechte oder eine aktive Erweiterung.
 
-Wenn du den Einrichtungsassistenten noch nicht geschlossen oder abgeschlossen hast, erscheint er einmal beim normalen Start – auch für bestehende Nutzer. Vorhandene Einstellungen bleiben erhalten. Er erklärt die Menüleiste und bietet Finder-Aktionen mit den nötigen Berechtigungen, den Start bei der Anmeldung und die automatische Update-Suche an. Änderungen werden sofort gespeichert. Die vier Finder-Aktionen bleiben aus, bis du sie auswählst. Du kannst ohne Berechtigung fortfahren, das Fenster schließen; nach einem Neustart oder Update öffnet sich der Assistent nicht erneut automatisch. Wenn neue Nutzer die Update-Auswahl überspringen, bleibt die automatische Suche aus. Vorhandene Update-Einstellungen bleiben erhalten; Builds mit Update-Unterstützung erlauben weiterhin die manuelle Suche. Die Abschlussseite erscheint im selben Fenster; über die Schaltfläche zum Loslegen öffnest du das Buckle-Menü. Berechtigungen stehen auf einer eigenen Seite vor den Funktionsschaltern; du kannst auch ohne Freigabe fortfahren.
+Wenn du den Einrichtungsassistenten noch nicht geschlossen oder abgeschlossen hast, erscheint er einmal beim normalen Start – auch für bestehende Nutzer. Vorhandene Einstellungen bleiben erhalten. Er erklärt die Menüleiste und bietet Finder-Aktionen mit den nötigen Berechtigungen, den Start bei der Anmeldung und die automatische Update-Suche an. Änderungen werden sofort gespeichert. Die fünf Finder-Aktionen bleiben aus, bis du sie auswählst. Du kannst ohne Berechtigung fortfahren, das Fenster schließen; nach einem Neustart oder Update öffnet sich der Assistent nicht erneut automatisch. Wenn neue Nutzer die Update-Auswahl überspringen, bleibt die automatische Suche aus. Vorhandene Update-Einstellungen bleiben erhalten; Builds mit Update-Unterstützung erlauben weiterhin die manuelle Suche. Die Abschlussseite erscheint im selben Fenster; über die Schaltfläche zum Loslegen öffnest du das Buckle-Menü. Berechtigungen stehen auf einer eigenen Seite vor den Funktionsschaltern; du kannst auch ohne Freigabe fortfahren.
 
 > [!IMPORTANT]
 > Die Builds sind ad-hoc-signiert und nicht notarisiert. Heruntergeladene Builds benötigen möglicherweise eine Freigabe in den Systemeinstellungen; nach einem Update können erneute Berechtigungen nötig sein.
@@ -49,7 +49,7 @@ Der Befehl entfernt nur den Eintrag zum Schließen des Assistenten. Andere Einst
     <td width="64%" align="center"><img src="images/readme/menu-bar.png" width="310" alt="Systemwerkzeuge in der Menüleiste"></td>
   </tr>
   <tr>
-    <td width="36%"><strong>Aktionen direkt im Finder</strong><br><br>Ergänze das Finder-Kontextmenü um AirDrop, Im Terminal öffnen, Pfad kopieren und Objekte hierherbewegen. Das Terminal öffnet sich im ausgewählten oder aktuellen Ordner; mehrere Pfade werden zeilenweise kopiert.</td>
+    <td width="36%"><strong>Aktionen direkt im Finder</strong><br><br>Ergänze das Finder-Kontextmenü um AirDrop, Im Terminal öffnen, Pfad kopieren, Objekte hierherbewegen und Neue Textdatei. Das Terminal öffnet sich im ausgewählten oder aktuellen Ordner; mehrere Pfade werden zeilenweise kopiert.</td>
     <td width="64%" align="center"><img src="images/readme/finder-context-menu.png" width="285" alt="Aktionen direkt im Finder"></td>
   </tr>
   <tr>
@@ -57,6 +57,8 @@ Der Befehl entfernt nur den Eintrag zum Schließen des Assistenten. Andere Einst
     <td width="64%" align="center"><img src="images/readme/browser-language.png" width="580" alt="Browser in acht Sprachen starten"></td>
   </tr>
 </table>
+
+**Neue Textdatei:** Aktiviere die Aktion in der Menüleiste oder Einrichtung und klicke mit rechts auf einen einzelnen gewöhnlichen Ordner oder dessen Hintergrund. Buckle erstellt eine leere `.txt`-Datei mit lokalisiertem Namen, ergänzt bei Namenskonflikten eine Nummer ohne Überschreiben und wählt sie im Finder aus. Dafür ist die Finder-Erweiterung nötig, ohne zusätzliche Bedienungshilfen- oder Automatisierungsberechtigung. Automatisches Umbenennen und das native Widerrufen im Finder werden nicht angeboten.
 
 ## Einstellungen
 

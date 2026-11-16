@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "正在重置鼠标：%@";
 "finder.configuration.invalid" = "访达配置已损坏";
 "finder.configuration.restore" = "恢复默认配置";
-"finder.configuration.restore.help" = "将先备份当前配置文件，再恢复默认设置，四项访达右键菜单功能将全部关闭。备份保存在 Buckle 的访达配置目录中。";
+"finder.configuration.restore.help" = "将先备份当前配置文件，再恢复默认设置，所有访达右键菜单功能都将关闭。备份保存在 Buckle 的访达配置目录中。";
 "cancel" = "取消";
 "memory.recovery.show" = "查看恢复记录";
 "quit.recovery.title" = "恢复尚未完成";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "你的选择已保存。点击“开始使用”打开 Buckle 菜单，以后也可以随时从这里修改设置。";
 "onboarding.permissions.title" = "权限与访达扩展";
 "onboarding.permissions.help" = "先查看权限，再选择功能。辅助功能和自动化用于移动文件等操作，访达扩展用于右键菜单。你可以按需授权，也可以直接继续。";
+"finder.newTextFile.title" = "新建文本文档";
+"finder.newTextFile.toggle" = "新建文本文档";
+"finder.newTextFile.name" = "新建文本文档";
+"finder.newTextFile.directory.changed" = "目标文件夹已发生变化。";
+"finder.newTextFile.already.consumed" = "这次新建请求已经处理过。";
+"finder.newTextFile.journal.damaged" = "无法安全读取文件新建请求记录。";
+"finder.newTextFile.created.unavailable" = "文本文件已创建，但无法确认其当前位置。";
+"finder.newTextFile.retry.help" = "请检查文件夹及其内容，需要时重新使用 Finder 菜单。";
+"finder.newTextFile.journal.help" = "为防止重复请求，新建文件已暂停。请保留请求记录并排查错误后再试。";
+"finder.newTextFile.authorization.failed" = "新建文本文档不可用：%@";

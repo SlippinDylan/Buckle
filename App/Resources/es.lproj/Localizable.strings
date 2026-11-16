@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "Reiniciando utilidades del ratón: %@";
 "finder.configuration.invalid" = "La configuración de Finder está dañada";
 "finder.configuration.restore" = "Restaurar configuración predeterminada";
-"finder.configuration.restore.help" = "Se guardará una copia de la configuración actual en la carpeta de configuración de Finder de Buckle. Después se restaurarán los valores predeterminados y se desactivarán las cuatro funciones del menú contextual del Finder.";
+"finder.configuration.restore.help" = "Se guardará una copia de la configuración actual en la carpeta de configuración de Finder de Buckle. Después se restaurarán los valores predeterminados y se desactivarán todas las funciones del menú contextual del Finder.";
 "cancel" = "Cancelar";
 "memory.recovery.show" = "Mostrar registro de recuperación";
 "quit.recovery.title" = "La recuperación no ha terminado";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "Tus opciones se han guardado. Abre el menú de Buckle para empezar a usarlo o cambiar los ajustes en cualquier momento.";
 "onboarding.permissions.title" = "Permisos y extensión de Finder";
 "onboarding.permissions.help" = "Revisa los permisos antes de elegir funciones. Accesibilidad y automatización permiten acciones como mover archivos; la extensión añade el menú contextual. Concede acceso según lo necesites o continúa sin hacerlo.";
+"finder.newTextFile.title" = "Nuevo archivo de texto";
+"finder.newTextFile.toggle" = "Nuevo archivo de texto";
+"finder.newTextFile.name" = "Nuevo documento de texto";
+"finder.newTextFile.directory.changed" = "La carpeta de destino ha cambiado.";
+"finder.newTextFile.already.consumed" = "Esta solicitud de creación ya se ha procesado.";
+"finder.newTextFile.journal.damaged" = "No se puede leer de forma segura el registro de solicitudes de creación.";
+"finder.newTextFile.created.unavailable" = "Se ha creado el archivo de texto, pero no se ha podido confirmar su ubicación.";
+"finder.newTextFile.retry.help" = "Comprueba la carpeta y su contenido y vuelve a usar el menú del Finder si es necesario.";
+"finder.newTextFile.journal.help" = "La creación está pausada para evitar duplicados. Conserva el registro y comprueba el error.";
+"finder.newTextFile.authorization.failed" = "Nuevo archivo de texto no disponible: %@";

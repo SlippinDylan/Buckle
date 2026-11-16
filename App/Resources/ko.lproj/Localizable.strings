@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "마우스 유틸리티 재시작 중: %@";
 "finder.configuration.invalid" = "Finder 설정 파일이 손상되었습니다";
 "finder.configuration.restore" = "기본 설정 복원";
-"finder.configuration.restore.help" = "현재 설정을 Buckle의 Finder 설정 폴더에 백업한 다음 기본 설정을 복원합니다. Finder 우클릭 메뉴 기능 네 가지가 모두 꺼집니다.";
+"finder.configuration.restore.help" = "현재 설정을 Buckle의 Finder 설정 폴더에 백업한 다음 기본 설정을 복원합니다. 모든 Finder 우클릭 메뉴 기능이 꺼집니다.";
 "cancel" = "취소";
 "memory.recovery.show" = "복구 기록 보기";
 "quit.recovery.title" = "복구가 완료되지 않았습니다";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "선택 사항이 저장되었습니다. Buckle 메뉴를 열어 사용을 시작하세요. 설정은 언제든지 변경할 수 있습니다.";
 "onboarding.permissions.title" = "권한 및 Finder 확장 프로그램";
 "onboarding.permissions.help" = "기능을 선택하기 전에 권한을 확인하세요. 손쉬운 사용과 자동화는 파일 이동 등에, Finder 확장은 우클릭 메뉴에 사용됩니다. 필요에 따라 허용하거나 그대로 계속할 수 있습니다.";
+"finder.newTextFile.title" = "새 텍스트 파일";
+"finder.newTextFile.toggle" = "새 텍스트 파일";
+"finder.newTextFile.name" = "새 텍스트 문서";
+"finder.newTextFile.directory.changed" = "대상 폴더가 변경되었습니다.";
+"finder.newTextFile.already.consumed" = "이 생성 요청은 이미 처리되었습니다.";
+"finder.newTextFile.journal.damaged" = "파일 생성 요청 기록을 안전하게 읽을 수 없습니다.";
+"finder.newTextFile.created.unavailable" = "텍스트 파일이 생성되었지만 현재 위치를 확인할 수 없습니다.";
+"finder.newTextFile.retry.help" = "폴더와 내용을 확인한 후 필요한 경우 Finder 메뉴를 다시 사용하세요.";
+"finder.newTextFile.journal.help" = "중복 요청을 방지하기 위해 파일 생성이 일시 중지되었습니다. 요청 기록을 보존하고 오류를 확인하세요.";
+"finder.newTextFile.authorization.failed" = "새 텍스트 파일을 사용할 수 없습니다: %@";

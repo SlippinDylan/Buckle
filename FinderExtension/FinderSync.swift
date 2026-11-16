@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import FinderSync
 import OSLog
 import os.lock
@@ -13,6 +14,7 @@ final class BuckleFinderSync: FIFinderSync {
     private enum MenuAction: Sendable {
         case open(URL)
         case copy([URL])
+        case newTextFile(FinderNewTextFileTarget, SymmetricKey)
     }
 
     private struct MenuActions {
@@ -94,7 +96,7 @@ final class BuckleFinderSync: FIFinderSync {
                     actions: &actions)
             }
             let directory: URL?
-            if configuration.terminalEnabled || configuration.moveEnabled {
+            if configuration.terminalEnabled || configuration.moveEnabled || configuration.newTextFileEnabled {
                 do { directory = try context.directory() } catch {
                     directory = nil
                     logger.error("Could not read Finder directory: \(error.localizedDescription, privacy: .private)")
@@ -119,6 +121,22 @@ final class BuckleFinderSync: FIFinderSync {
                 item.target = self
                 item.tag = register(.copy(context.files), in: &actions)
                 menu.addItem(item)
+            }
+            if configuration.newTextFileEnabled, let directory {
+                do {
+                    let target = try FinderNewTextFileTarget(directory: directory)
+                    let key = try store.loadNewTextFileKey()
+                    let item = NSMenuItem(
+                        title: localized("finder.newTextFile.title", language: language),
+                        action: #selector(performAction(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.tag = register(.newTextFile(target, key), in: &actions)
+                    menu.addItem(item)
+                } catch {
+                    logger.error(
+                        "Could not prepare text file request: \(error.localizedDescription, privacy: .private)")
+                    addUnavailableItem(to: menu, language: language)
+                }
             }
             if configuration.moveEnabled, let directory {
                 let item = NSMenuItem(
@@ -185,6 +203,13 @@ final class BuckleFinderSync: FIFinderSync {
             switch action {
             case .open(let request): openRequest(request, logger)
             case .copy(let files): copyFiles(files, logger)
+            case .newTextFile(let target, let key):
+                do {
+                    openRequest(try FinderNewTextFileRequest(target: target, key: key).url(), logger)
+                } catch {
+                    logger.error("Could not encode text file request: \(error.localizedDescription, privacy: .private)")
+                    NSAlert(error: error).runModal()
+                }
             }
         }
     }

@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "Mausprogramme werden neu gestartet: %@";
 "finder.configuration.invalid" = "Finder-Konfiguration ist beschädigt";
 "finder.configuration.restore" = "Standardkonfiguration wiederherstellen";
-"finder.configuration.restore.help" = "Die aktuelle Konfiguration wird im Finder-Konfigurationsordner von Buckle gesichert. Anschließend werden die Standardeinstellungen wiederhergestellt und alle vier Finder-Kontextmenüfunktionen ausgeschaltet.";
+"finder.configuration.restore.help" = "Die aktuelle Konfiguration wird im Finder-Konfigurationsordner von Buckle gesichert. Anschließend werden die Standardeinstellungen wiederhergestellt und alle Finder-Kontextmenüfunktionen ausgeschaltet.";
 "cancel" = "Abbrechen";
 "memory.recovery.show" = "Wiederherstellungseintrag anzeigen";
 "quit.recovery.title" = "Wiederherstellung nicht abgeschlossen";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "Deine Auswahl wurde gespeichert. Öffne das Buckle-Menü, um loszulegen oder jederzeit Einstellungen zu ändern.";
 "onboarding.permissions.title" = "Berechtigungen und Finder-Erweiterung";
 "onboarding.permissions.help" = "Prüfe die Berechtigungen vor der Funktionsauswahl. Bedienungshilfen und Automation ermöglichen etwa das Verschieben von Dateien; die Finder-Erweiterung ergänzt das Kontextmenü. Erteile Zugriff nach Bedarf oder fahre ohne ihn fort.";
+"finder.newTextFile.title" = "Neue Textdatei";
+"finder.newTextFile.toggle" = "Neue Textdatei";
+"finder.newTextFile.name" = "Neues Textdokument";
+"finder.newTextFile.directory.changed" = "Der Zielordner hat sich geändert.";
+"finder.newTextFile.already.consumed" = "Diese Erstellungsanfrage wurde bereits verarbeitet.";
+"finder.newTextFile.journal.damaged" = "Das Protokoll der Dateierstellung lässt sich nicht sicher lesen.";
+"finder.newTextFile.created.unavailable" = "Die Textdatei wurde erstellt, ihr Speicherort konnte jedoch nicht bestätigt werden.";
+"finder.newTextFile.retry.help" = "Prüfe den Ordner und seinen Inhalt und verwende bei Bedarf erneut das Finder-Menü.";
+"finder.newTextFile.journal.help" = "Die Dateierstellung ist zum Schutz vor Duplikaten pausiert. Bewahre das Protokoll auf und prüfe den Fehler.";
+"finder.newTextFile.authorization.failed" = "Neue Textdatei ist nicht verfügbar: %@";

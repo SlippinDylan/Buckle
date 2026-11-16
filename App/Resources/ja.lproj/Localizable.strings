@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "マウスユーティリティを再起動中：%@";
 "finder.configuration.invalid" = "Finder の設定ファイルが破損しています";
 "finder.configuration.restore" = "デフォルト設定に戻す";
-"finder.configuration.restore.help" = "現在の設定を Buckle の Finder 設定フォルダにバックアップした後、デフォルトに戻します。Finder のコンテキストメニュー機能は4つともオフになります。";
+"finder.configuration.restore.help" = "現在の設定を Buckle の Finder 設定フォルダにバックアップした後、デフォルトに戻します。Finder のコンテキストメニュー機能はすべてオフになります。";
 "cancel" = "キャンセル";
 "memory.recovery.show" = "復元記録を表示";
 "quit.recovery.title" = "復元が完了していません";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "選択内容を保存しました。Buckle のメニューを開いて使い始めましょう。設定はいつでも変更できます。";
 "onboarding.permissions.title" = "権限と Finder 拡張機能";
 "onboarding.permissions.help" = "機能を選ぶ前に権限を確認します。アクセシビリティと自動化はファイル移動などに、Finder 拡張機能は右クリックメニューに使います。必要に応じて許可するか、そのまま進めます。";
+"finder.newTextFile.title" = "テキストファイルを作成";
+"finder.newTextFile.toggle" = "テキストファイルを作成";
+"finder.newTextFile.name" = "新規テキストドキュメント";
+"finder.newTextFile.directory.changed" = "作成先のフォルダが変更されました。";
+"finder.newTextFile.already.consumed" = "この作成リクエストは処理済みです。";
+"finder.newTextFile.journal.damaged" = "ファイル作成リクエストの記録を安全に読み取れません。";
+"finder.newTextFile.created.unavailable" = "テキストファイルは作成されましたが、現在の場所を確認できません。";
+"finder.newTextFile.retry.help" = "フォルダと内容を確認し、必要に応じて Finder メニューから再操作してください。";
+"finder.newTextFile.journal.help" = "重複を防ぐためファイル作成を停止しています。記録を保持してエラーを確認してください。";
+"finder.newTextFile.authorization.failed" = "テキストファイル作成を利用できません：%@";

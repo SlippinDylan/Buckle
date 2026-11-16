@@ -42,7 +42,7 @@
 "mouse.accessibility.running" = "正在重置滑鼠：%@";
 "finder.configuration.invalid" = "Finder 設定已損壞";
 "finder.configuration.restore" = "回復預設設定";
-"finder.configuration.restore.help" = "將先備份目前的設定檔，再回復預設設定，四項 Finder 右鍵選單功能將全部關閉。備份儲存在 Buckle 的 Finder 設定目錄中。";
+"finder.configuration.restore.help" = "將先備份目前的設定檔，再回復預設設定，所有 Finder 右鍵選單功能都將關閉。備份儲存在 Buckle 的 Finder 設定目錄中。";
 "cancel" = "取消";
 "memory.recovery.show" = "查看復原記錄";
 "quit.recovery.title" = "復原尚未完成";
@@ -145,3 +145,13 @@
 "onboarding.complete.help" = "你的選擇已儲存。點擊「開始使用」開啟 Buckle 選單，之後也可隨時從這裡修改設定。";
 "onboarding.permissions.title" = "權限與 Finder 擴充功能";
 "onboarding.permissions.help" = "先查看權限，再選擇功能。輔助使用和自動化用於移動檔案等操作，Finder 擴充功能用於右鍵選單。你可以按需授權，也可以直接繼續。";
+"finder.newTextFile.title" = "新增文字文件";
+"finder.newTextFile.toggle" = "新增文字文件";
+"finder.newTextFile.name" = "新增文字文件";
+"finder.newTextFile.directory.changed" = "目標檔案夾已變更。";
+"finder.newTextFile.already.consumed" = "這次新增要求已處理過。";
+"finder.newTextFile.journal.damaged" = "無法安全讀取檔案新增要求記錄。";
+"finder.newTextFile.created.unavailable" = "文字檔案已建立，但無法確認目前位置。";
+"finder.newTextFile.retry.help" = "請檢查檔案夾及其內容，需要時重新使用 Finder 選單。";
+"finder.newTextFile.journal.help" = "為防止重複要求，新增檔案已暫停。請保留要求記錄並排查錯誤後再試。";
+"finder.newTextFile.authorization.failed" = "新增文字檔案無法使用：%@";

@@ -12,21 +12,23 @@ struct FinderConfiguration: Codable, Equatable {
     var terminalEnabled: Bool
     var copyPathEnabled: Bool
     var moveEnabled: Bool
+    var newTextFileEnabled: Bool
     var language: String?
     static let initial = FinderConfiguration()
 
     private enum CodingKeys: String, CodingKey {
-        case airDropEnabled, terminalEnabled, copyPathEnabled, moveEnabled, language
+        case airDropEnabled, terminalEnabled, copyPathEnabled, moveEnabled, newTextFileEnabled, language
     }
 
     init(
         airDropEnabled: Bool = false, terminalEnabled: Bool = false, copyPathEnabled: Bool = false,
-        moveEnabled: Bool = false, language: String? = nil
+        moveEnabled: Bool = false, newTextFileEnabled: Bool = false, language: String? = nil
     ) {
         self.airDropEnabled = airDropEnabled
         self.terminalEnabled = terminalEnabled
         self.copyPathEnabled = copyPathEnabled
         self.moveEnabled = moveEnabled
+        self.newTextFileEnabled = newTextFileEnabled
         self.language = language
     }
 
@@ -43,6 +45,9 @@ struct FinderConfiguration: Codable, Equatable {
         moveEnabled =
             values.contains(.moveEnabled)
             ? try values.decode(Bool.self, forKey: .moveEnabled) : Self.initial.moveEnabled
+        newTextFileEnabled =
+            values.contains(.newTextFileEnabled)
+            ? try values.decode(Bool.self, forKey: .newTextFileEnabled) : false
     }
 
     func isEnabled(_ action: FinderAction) -> Bool {
@@ -51,6 +56,7 @@ struct FinderConfiguration: Codable, Equatable {
         case .terminal: terminalEnabled
         case .copyPath: copyPathEnabled
         case .move: moveEnabled
+        case .newTextFile: newTextFileEnabled
         }
     }
 
@@ -60,6 +66,7 @@ struct FinderConfiguration: Codable, Equatable {
         case .terminal: terminalEnabled = enabled
         case .copyPath: copyPathEnabled = enabled
         case .move: moveEnabled = enabled
+        case .newTextFile: newTextFileEnabled = enabled
         }
     }
 }
@@ -136,6 +143,7 @@ enum FinderAction: String, CaseIterable {
     case terminal
     case copyPath = "copy-path"
     case move
+    case newTextFile = "new-text-file"
 }
 
 enum FinderMenuContext {
@@ -165,7 +173,7 @@ struct FinderActionRequest: Equatable {
 
     init(action: FinderAction, files: [URL], clipboardChangeCount: Int? = nil, signature: Data? = nil) throws {
         // Clipboard writes stay inside the extension and are never accepted through the public URL scheme.
-        guard action != .copyPath else { throw RequestError.invalidRoute }
+        guard action != .copyPath && action != .newTextFile else { throw RequestError.invalidRoute }
         guard !files.isEmpty,
             files.allSatisfy({
                 $0.isFileURL && ($0.host == nil || $0.host == "" || $0.host == "localhost")

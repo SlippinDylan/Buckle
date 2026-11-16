@@ -19,10 +19,10 @@ Buckle 是原生 macOS 選單列工具，提供系統工具、依語言啟動瀏
 1. 前往 [GitHub 最新版本](https://github.com/SlippinDylan/Buckle/releases/latest)，在 **Assets** 中下載 `Buckle-<版本>.dmg`。原始碼壓縮檔供開發使用，不是安裝檔。
 2. 更新前，先在執行中的 Buckle 選單選擇「結束」，等待應用程式結束。開啟 DMG，將 `Buckle.app` 拖入「應用程式」，視需要取代舊版本。
 3. 開啟 `/Applications/Buckle.app`。Buckle 會顯示於選單列，不顯示 Dock 圖示；保留一份已安裝的應用程式。
-4. 透過選單列使用工具或開啟 Finder 右鍵功能。四項 Finder 功能首次使用時預設關閉，之後會保留選擇。
+4. 透過選單列使用工具或開啟 Finder 右鍵功能。五項 Finder 功能首次使用時預設關閉，之後會保留選擇。
 5. 在「設定 → 權限」中啟用 Finder 擴充功能或授予所需權限。狀態自動更新；綠色文字和勾選表示已授權或已啟用。
 
-尚未關閉或完成過引導的使用者，會在正常啟動時看到一次使用引導；現有使用者也會看到，原設定保留。引導介紹選單列入口，可選擇 Finder 右鍵功能、按需授權，並設定登入時啟動和自動檢查更新。變更立即儲存，四項 Finder 功能在主動選擇前仍預設關閉。不授權也能繼續；關閉視窗後，重新啟動和升級都不會自動重開。新使用者略過更新選擇時，自動檢查保持關閉；既有更新偏好保留，支援更新的版本仍可手動檢查。 最後在視窗內顯示設定完成頁，點擊「開始使用 Buckle」即可開啟選單。 權限獨立放在功能開關之前的一頁，可按需授權或直接繼續。
+尚未關閉或完成過引導的使用者，會在正常啟動時看到一次使用引導；現有使用者也會看到，原設定保留。引導介紹選單列入口，可選擇 Finder 右鍵功能、按需授權，並設定登入時啟動和自動檢查更新。變更立即儲存，五項 Finder 功能在主動選擇前仍預設關閉。不授權也能繼續；關閉視窗後，重新啟動和升級都不會自動重開。新使用者略過更新選擇時，自動檢查保持關閉；既有更新偏好保留，支援更新的版本仍可手動檢查。 最後在視窗內顯示設定完成頁，點擊「開始使用 Buckle」即可開啟選單。 權限獨立放在功能開關之前的一頁，可按需授權或直接繼續。
 
 > [!IMPORTANT]
 > 建置採用 ad-hoc 簽署，未經公證。下載的版本可能需要在系統設定中允許執行；更新後可能需要重新授權。
@@ -49,7 +49,7 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
     <td width="64%" align="center"><img src="images/readme/menu-bar.png" width="310" alt="系統工具，點擊即用"></td>
   </tr>
   <tr>
-    <td width="36%"><strong>直接在 Finder 操作</strong><br><br>將 AirDrop、在終端機中打開、拷貝路徑、搬移項目至此加入 Finder 快顯選單。在選取的檔案夾或目前目錄開啟終端機；多個路徑分行拷貝。</td>
+    <td width="36%"><strong>直接在 Finder 操作</strong><br><br>將 AirDrop、在終端機中打開、拷貝路徑、搬移項目至此、新增文字文件加入 Finder 快顯選單。在選取的檔案夾或目前目錄開啟終端機；多個路徑分行拷貝。</td>
     <td width="64%" align="center"><img src="images/readme/finder-context-menu.png" width="285" alt="直接在 Finder 操作"></td>
   </tr>
   <tr>
@@ -57,6 +57,8 @@ defaults delete studio.slippindylan.Buckle onboarding.dismissed
     <td width="64%" align="center"><img src="images/readme/browser-language.png" width="580" alt="依八種語言啟動瀏覽器"></td>
   </tr>
 </table>
+
+**新增文字文件：**在選單列或首次設定中開啟，再對單一一般檔案夾或其空白處按右鍵。Buckle 建立使用本地化名稱的空白 `.txt` 檔案，同名時加上編號且不覆寫，並在 Finder 中選取。需要 Finder 延伸功能，不另外要求輔助使用或自動化權限；不提供自動重新命名或 Finder 原生還原。
 
 ## 設定
 

@@ -12,6 +12,9 @@ enum FinderSandboxCheck {
         let request = try FinderActionRequest(action: .move, files: [file], clipboardChangeCount: 1).signed(using: key)
         let authenticated = try FinderActionRequest(url: request.url()).authenticates(using: key)
         precondition(authenticated)
+        let target = try FinderNewTextFileTarget(directory: store.directory)
+        let creation = try FinderNewTextFileRequest(target: target, key: key)
+        try FinderNewTextFileRequest(url: creation.url()).validate(key: key, now: Date())
         do {
             try Data("write must fail".utf8).write(to: file)
             preconditionFailure("Finder extension must only have read access to the configuration directory")

@@ -99,8 +99,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard !lifecycle.terminationRequested else { return }
             do {
                 for url in urls {
-                    let request = try FinderActionRequest(url: url)
-                    try await finderActions.handle(request)
+                    if url.path == "/new-text-file" {
+                        try await finderActions.handle(FinderNewTextFileRequest(url: url))
+                    } else {
+                        try await finderActions.handle(FinderActionRequest(url: url))
+                    }
                 }
             } catch {
                 guard lifecycle.shouldPresentUserActionError(error) else { return }

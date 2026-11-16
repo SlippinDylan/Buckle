@@ -45,14 +45,16 @@ Buckle 的以下运行数据尤其需要保留。这里展示的是非沙盒主 
 | 数据 | 典型位置／机制 | 保护原因 |
 |---|---|---|
 | 应用语言、鼠标重置名单、等待时间和引导关闭记录 | 主 App UserDefaults，`studio.slippindylan.Buckle` 偏好域 | 用户设置，不是缓存 |
-| Finder 菜单配置 | `~/Library/Application Support/Buckle/Finder/menus.json` | 四项开关与运行语言 |
+| Finder 菜单配置 | `~/Library/Application Support/Buckle/Finder/menus.json` | 五项开关与运行语言 |
 | 移动请求密钥 | 同目录 `move-request.key` | 既有请求认证身份；删除会改变行为 |
+| 文本新建请求密钥 | 同目录 `new-text-file-request.key` | 独立请求认证身份，不是构建缓存 |
+| 文本新建已消费记录 | 同目录 `new-text-file-consumed.log` | 跨重启防重放的追加记录，不裁剪；损坏时保留并停止创建，不可按日志清理 |
 | 配置恢复备份 | 同目录 `menus-backup-<UUID>.json` | 用户确认恢复前保留的原配置 |
 | 内存窗口恢复记录 | `~/Library/Application Support/Buckle/MemoryPanel/pending.plist` | 原系统设置的唯一恢复记录 |
 | 鼠标工具待恢复记录 | `~/Library/Application Support/Buckle/MouseReset/pending.json` | 中断操作后需要恢复的应用名单 |
 | 旧浏览器资料 | `~/Library/Application Support/Buckle/BrowserProfiles/`（如存在） | 旧版用户资料，当前虽不再使用也不自动删除 |
 
-只删除 App bundle 不会主动删除上述支持数据或系统授权，升级沿用这些状态。卸载后的数据删除、恢复记录处理、权限撤销或重建移动密钥均需用户另行明确授权；未完成恢复的记录不能因卸载或清理被丢弃。
+只删除 App bundle 不会主动删除上述支持数据或系统授权，升级沿用这些状态。卸载后的数据删除、恢复记录处理、权限撤销或重建移动／文本新建密钥、删除文本新建已消费记录均需用户另行明确授权；未完成恢复的记录不能因卸载或清理被丢弃。
 
 ## 执行与报告
 

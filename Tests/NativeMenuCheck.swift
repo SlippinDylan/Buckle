@@ -48,7 +48,8 @@ enum NativeMenuCheck {
             FinderAction.allCases.contains { $0.rawValue == item.identifier?.rawValue }
         }
         precondition(
-            finderItems.count == 4 && finderItems.allSatisfy { !$0.isEnabled && $0.state == .mixed },
+            finderItems.count == FinderAction.allCases.count
+                && finderItems.allSatisfy { !$0.isEnabled && $0.state == .mixed },
             "Unexpected Finder items: \(finderItems.map { ($0.title, $0.identifier?.rawValue, $0.state.rawValue, $0.isEnabled) })"
         )
         await finder.refresh()
@@ -278,7 +279,7 @@ enum NativeMenuCheck {
             }, "An unavailable configuration must explain why feature switches cannot be shown")
         await finder.restoreConfiguration()
         let restoredViews = settings.onboardingRows(for: .finder).flatMap { [$0] + descendants(of: $0) }
-        precondition(restoredViews.compactMap { $0 as? NSSwitch }.count == 4)
+        precondition(restoredViews.compactMap { $0 as? NSSwitch }.count == FinderAction.allCases.count)
         let unreadableFinder = FinderExtensionController(configurationStore: { throw CocoaError(.fileReadNoPermission) }
         )
         await unreadableFinder.refresh()
@@ -374,7 +375,7 @@ enum NativeMenuCheck {
         await finder.refresh()
         let finderRows = settings.onboardingRows(for: .finder)
         let finderViews = finderRows.flatMap { [$0] + descendants(of: $0) }
-        precondition(finderViews.compactMap { $0 as? NSSwitch }.count == 4)
+        precondition(finderViews.compactMap { $0 as? NSSwitch }.count == FinderAction.allCases.count)
         for control in finderViews.compactMap({ $0 as? NSSwitch }) {
             guard let identifier = control.identifier, let action = FinderAction(rawValue: identifier.rawValue) else {
                 preconditionFailure("Each guide switch must identify its existing Finder action")

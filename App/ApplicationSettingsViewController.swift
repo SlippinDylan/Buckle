@@ -142,6 +142,7 @@ final class ApplicationSettingsViewController: NSViewController {
             _ = finderAutomation.state
             _ = finder.state
             _ = finder.configuration
+            _ = finder.newTextFileAuthorizationError
             _ = finder.moveAuthorizationError
             _ = finder.isBusy
             _ = updates.canCheck
@@ -383,6 +384,7 @@ final class ApplicationSettingsViewController: NSViewController {
                     case .terminal: key = "finder.terminal.toggle"
                     case .copyPath: key = "finder.copyPath.toggle"
                     case .move: key = "finder.move.toggle"
+                    case .newTextFile: key = "finder.newTextFile.toggle"
                     }
                     let control = toggle(
                         localized(key), enabled: configuration.isEnabled(action),
@@ -396,6 +398,7 @@ final class ApplicationSettingsViewController: NSViewController {
                 if let message = finderStatusMessage { rows.append(description(message)) }
             }
             if let message = finder.moveAuthorizationError { rows.append(description(message)) }
+            if let message = finder.newTextFileAuthorizationError { rows.append(description(message)) }
             return rows
         case .preferences:
             var rows = startupRows() + updateRows()
@@ -466,6 +469,7 @@ final class ApplicationSettingsViewController: NSViewController {
         if let error = memoryPanel.error ?? memoryPanel.permissionError { addDescription(error) }
         if case .failed(let message) = finderAutomation.state { addDescription(message) }
         if let message = finder.moveAuthorizationError { addDescription(message) }
+        if let message = finder.newTextFileAuthorizationError { addDescription(message) }
         if let message = finderStatusMessage { addDescription(message) }
     }
 

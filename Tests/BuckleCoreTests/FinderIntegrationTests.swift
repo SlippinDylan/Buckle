@@ -86,7 +86,7 @@ import Testing
         FinderConfiguration.self,
         from: Data(#"{"airDropEnabled":false,"terminalEnabled":true,"copyPathEnabled":false,"moveEnabled":true}"#.utf8))
     #expect(!explicit.airDropEnabled && explicit.terminalEnabled && !explicit.copyPathEnabled && explicit.moveEnabled)
-    for key in ["airDropEnabled", "terminalEnabled", "copyPathEnabled", "moveEnabled"] {
+    for key in ["airDropEnabled", "terminalEnabled", "copyPathEnabled", "moveEnabled", "newTextFileEnabled"] {
         for invalid in ["null", #""yes""#] {
             let json =
                 key == "airDropEnabled" ? "{\"\(key)\":\(invalid)}" : "{\"airDropEnabled\":false,\"\(key)\":\(invalid)}"

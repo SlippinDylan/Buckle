@@ -10,6 +10,8 @@ final class FinderActionService {
     private let configuration: () throws -> FinderConfiguration
     private let moveKey: () throws -> SymmetricKey
     private let pasteboard: NSPasteboard
+    private let createTextFile: @Sendable (FinderNewTextFileRequest, String) async throws -> URL
+    private let revealFile: (URL) -> Void
     private let move: @MainActor (FinderMovePlan) async throws -> Void
 
     init(
@@ -19,7 +21,10 @@ final class FinderActionService {
         configuration: @escaping () throws -> FinderConfiguration = { try FinderConfigurationStore.standard().load() },
         pasteboard: NSPasteboard = .general,
         moveKey: @escaping () throws -> SymmetricKey = { try FinderConfigurationStore.standard().loadMoveKey() },
-        move: @escaping @MainActor (FinderMovePlan) async throws -> Void = FinderActionService.performMove
+        move: @escaping @MainActor (FinderMovePlan) async throws -> Void = FinderActionService.performMove,
+        createTextFile: @escaping @Sendable (FinderNewTextFileRequest, String) async throws -> URL = FinderActionService
+            .createTextFile,
+        revealFile: @escaping (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     ) {
         self.lifecycle = lifecycle
         self.airDrop =
@@ -34,6 +39,8 @@ final class FinderActionService {
         self.pasteboard = pasteboard
         self.moveKey = moveKey
         self.move = move
+        self.createTextFile = createTextFile
+        self.revealFile = revealFile
     }
 
     func handle(_ request: FinderActionRequest) async throws {
@@ -69,7 +76,7 @@ final class FinderActionService {
                     userInfo: [NSLocalizedDescriptionKey: localized("finder.directory.required")])
             }
             try await openTerminal(directory)
-        case .copyPath:
+        case .copyPath, .newTextFile:
             throw FinderActionRequest.RequestError.invalidRoute
         case .move:
             let clipboardChangeCount = pasteboard.changeCount
@@ -84,6 +91,29 @@ final class FinderActionService {
                 sources: sources, destination: request.files[0], clipboardChangeCount: clipboardChangeCount)
             try await move(plan)
         }
+    }
+
+    func handle(_ request: FinderNewTextFileRequest) async throws {
+        guard try configuration().newTextFileEnabled else {
+            throw CocoaError(
+                .featureUnsupported, userInfo: [NSLocalizedDescriptionKey: localized("finder.action.disabled")])
+        }
+        guard !lifecycle.terminationRequested else { throw CocoaError(.userCancelled) }
+        guard lifecycle.begin(.finderAction) else {
+            throw NSError(
+                domain: "Buckle.FinderAction", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: localized("finder.action.busy")])
+        }
+        defer { lifecycle.end(.finderAction) }
+        let url = try await createTextFile(request, localized("finder.newTextFile.name"))
+        revealFile(url)
+    }
+
+    nonisolated private static func createTextFile(_ request: FinderNewTextFileRequest, baseName: String) async throws
+        -> URL
+    {
+        try await NewTextFileService.shared.create(
+            request, baseName: baseName, store: FinderConfigurationStore.standard())
     }
 
     private static func launchTerminal(_ directory: URL) async throws {

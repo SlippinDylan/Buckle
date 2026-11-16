@@ -15,7 +15,7 @@ xcrun swiftc -typecheck -parse-as-library -swift-version 6 \
     -F build/SourcePackages/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64 \
     -target "$(uname -m)-apple-macos15.0" App/*.swift App/Core/*.swift
 xcrun swiftc -typecheck -parse-as-library -swift-version 6 -application-extension \
-    -target "$(uname -m)-apple-macos15.0" FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Localization.swift
+    -target "$(uname -m)-apple-macos15.0" FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift App/Localization.swift
 mkdir -p build/Checks
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/CommandRunner.swift App/Localization.swift Tests/CommandRunnerCheck.swift -o build/Checks/command-runner
@@ -37,14 +37,14 @@ xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos
     App/AirDropService.swift App/Localization.swift Tests/AirDropCheck.swift -o build/Checks/airdrop
 build/Checks/airdrop
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
-    App/AutomationPermission.swift App/CommandRunner.swift App/FinderActionService.swift App/FinderMoveService.swift App/AirDropService.swift App/Core/FinderIntegration.swift \
+    App/AutomationPermission.swift App/CommandRunner.swift App/FinderActionService.swift App/NewTextFileService.swift App/FinderMoveService.swift App/AirDropService.swift App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift \
     App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/FinderActionCheck.swift -o build/Checks/finder-action
 build/Checks/finder-action
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/AutomationPermission.swift App/CommandRunner.swift App/FinderMoveService.swift App/Core/FinderIntegration.swift App/Localization.swift Tests/FinderMoveCheck.swift -o build/Checks/finder-move
 build/Checks/finder-move
 xcrun swiftc -parse-as-library -swift-version 6 -application-extension -target "$(uname -m)-apple-macos15.0" \
-    FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Localization.swift Tests/FinderPathCopyCheck.swift -o build/Checks/finder-copy-path
+    FinderExtension/FinderSync.swift App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift App/Localization.swift Tests/FinderPathCopyCheck.swift -o build/Checks/finder-copy-path
 build/Checks/finder-copy-path
 xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
     App/MenuBarRestartController.swift App/Core/ApplicationLifecycle.swift App/Localization.swift Tests/MenuBarRestartCheck.swift -o build/Checks/menu-bar-restart
@@ -70,6 +70,10 @@ xcrun swiftc -parse-as-library -swift-version 6 -F "$sparkle_framework" \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker build/Checks/native-menu-info.plist \
     -o build/Checks/native-menu
 build/Checks/native-menu
+xcrun swiftc -parse-as-library -swift-version 6 -target "$(uname -m)-apple-macos15.0" \
+    App/Core/FinderIntegration.swift App/Core/FinderNewTextFile.swift App/NewTextFileService.swift App/Localization.swift \
+    Tests/NewTextFileCheck.swift -o build/Checks/new-text-file
+build/Checks/new-text-file
 xcrun swift-format lint --strict --recursive App FinderExtension Support Tests Package.swift
 for script in Scripts/*.sh; do bash -n "$script"; done
 plutil -lint App/Info.plist App/Buckle.entitlements FinderExtension/Info.plist FinderExtension/BuckleFinder.entitlements Buckle.xcodeproj/project.pbxproj

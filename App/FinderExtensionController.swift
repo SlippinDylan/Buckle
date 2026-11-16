@@ -13,6 +13,7 @@ final class FinderExtensionController {
     private(set) var state: State = .checking
     private(set) var configuration: FinderConfiguration?
     private(set) var moveAuthorizationError: String?
+    private(set) var newTextFileAuthorizationError: String?
     private(set) var isBusy = false
     @ObservationIgnored private let configurationStore: () throws -> FinderConfigurationStore
     @ObservationIgnored private let language = Bundle.main.preferredLocalizations.first
@@ -31,6 +32,7 @@ final class FinderExtensionController {
         defer { isBusy = false }
         configuration = nil
         moveAuthorizationError = nil
+        newTextFileAuthorizationError = nil
         do {
             do {
                 let store = try configurationStore()
@@ -45,6 +47,12 @@ final class FinderExtensionController {
                     do { try store.prepareMoveKey() } catch {
                         moveAuthorizationError = localizedFormat(
                             "finder.move.authorization.failed", error.localizedDescription)
+                    }
+                }
+                if loaded.newTextFileEnabled {
+                    do { try store.prepareNewTextFileKey() } catch {
+                        newTextFileAuthorizationError = localizedFormat(
+                            "finder.newTextFile.authorization.failed", error.localizedDescription)
                     }
                 }
             } catch let error as DecodingError {
@@ -71,10 +79,12 @@ final class FinderExtensionController {
         let store = try configurationStore()
         var updated = try store.load()
         if action == .move && enabled { try store.prepareMoveKey() }
+        if action == .newTextFile && enabled { try store.prepareNewTextFileKey() }
         updated.setEnabled(enabled, for: action)
         try store.save(updated)
         configuration = updated
         if action == .move { moveAuthorizationError = nil }
+        if action == .newTextFile { newTextFileAuthorizationError = nil }
     }
 
     func enable() async {

@@ -5,6 +5,12 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"4651BFF343DCFD6C5BEAFE25" = { "isa" = "PBXFileReference"; "path" = "App/Core/FinderNewTextFile.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
+		"18EAAFF478B6BE87715C1BC3" = { "isa" = "PBXBuildFile"; "fileRef" = "4651BFF343DCFD6C5BEAFE25"; };
+		"4C97D9AFB8FD8BE684508FE8" = { "isa" = "PBXBuildFile"; "fileRef" = "4651BFF343DCFD6C5BEAFE25"; };
+		"E3128FC659DB5FF0F6B1F2BD" = { "isa" = "PBXFileReference"; "path" = "App/NewTextFileService.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
+		"330C93820A0A0FC27117BCF0" = { "isa" = "PBXBuildFile"; "fileRef" = "E3128FC659DB5FF0F6B1F2BD"; };
+
 		"BE830A4824D04C6198B95203" = { "isa" = "PBXFileReference"; "path" = "App/OnboardingWindowController.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "<group>"; };
 		"BE830A4824D04C6198B95204" = { "isa" = "PBXBuildFile"; "fileRef" = "BE830A4824D04C6198B95203"; };
 
@@ -179,6 +185,8 @@
 			"isa" = "PBXGroup";
 			"sourceTree" = "<group>";
 			"children" = (
+				"E3128FC659DB5FF0F6B1F2BD",
+				"4651BFF343DCFD6C5BEAFE25",
 				"BE830A4824D04C6198B95203",
 				"BE830A4824D04C6198B95201",
 				"BBEC9378AF0A44F29E92F6B3",
@@ -765,6 +773,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"4C97D9AFB8FD8BE684508FE8",
 				"6A35D97163484ABD2EEDB01C",
 				"5C88DA4A80215F2E82D8D1DD",
 				"9950B78BF3A23D40E815F6C1",
@@ -824,6 +833,8 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"330C93820A0A0FC27117BCF0",
+				"18EAAFF478B6BE87715C1BC3",
 				"BE830A4824D04C6198B95204",
 				"BE830A4824D04C6198B95202",
 				"21DF317BF8064CB995A4BFC8",

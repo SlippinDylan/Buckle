@@ -19,10 +19,10 @@ Requires **macOS 15 or later**, on Apple Silicon or Intel. CI builds target Univ
 1. Download `Buckle-<version>.dmg` from the [latest GitHub Release](https://github.com/SlippinDylan/Buckle/releases/latest). Choose the installer under **Assets**; the source-code archives are for development.
 2. If upgrading, choose **Quit** from the running Buckle menu and wait for it to exit. Open the DMG and drag `Buckle.app` into **Applications**, replacing the previous copy if needed.
 3. Open `/Applications/Buckle.app`. Buckle appears in the menu bar, without a Dock icon. Keep one installed copy.
-4. Use the menu-bar menu to run tools or enable Finder actions. All four Finder actions are off on first use; your selections are saved.
+4. Use the menu-bar menu to run tools or enable Finder actions. All five Finder actions are off on first use; your selections are saved.
 5. Open **Settings → Permissions** to enable the Finder extension or grant requested access. Status refreshes automatically; green text and a checkmark indicate granted access or an enabled extension.
 
-The setup guide appears once on a normal launch if you have not dismissed it before, including for existing users; it preserves your current settings. It introduces the menu-bar app, lets you choose Finder actions, and offers the permissions those actions need, launch at login, and automatic update checks. Changes are saved immediately. All four Finder actions remain off until you choose them. You can continue without granting access, or close the window; the guide will not reopen automatically after restarting or upgrading. For new users, skipping the update choice leaves automatic checks off; existing update preferences are preserved and manual checks remain available in builds that support updates. The final page celebrates completion; choose **Start Using Buckle** to open its menu. Permissions appear on a separate page before the feature switches.
+The setup guide appears once on a normal launch if you have not dismissed it before, including for existing users; it preserves your current settings. It introduces the menu-bar app, lets you choose Finder actions, and offers the permissions those actions need, launch at login, and automatic update checks. Changes are saved immediately. All five Finder actions remain off until you choose them. You can continue without granting access, or close the window; the guide will not reopen automatically after restarting or upgrading. For new users, skipping the update choice leaves automatic checks off; existing update preferences are preserved and manual checks remain available in builds that support updates. The final page celebrates completion; choose **Start Using Buckle** to open its menu. Permissions appear on a separate page before the feature switches.
 
 > [!IMPORTANT]
 > Builds use ad-hoc signing and are not notarized. A downloaded build may need approval in System Settings; system permissions may need to be granted again after an update.
@@ -49,7 +49,7 @@ This removes only the setup dismissal record, leaving other settings, Finder dat
     <td width="64%" align="center"><img src="docs/images/readme/menu-bar.png" width="310" alt="System tools in the menu bar"></td>
   </tr>
   <tr>
-    <td width="36%"><strong>Finder actions, where you need them</strong><br><br>Add AirDrop, Open in Terminal, Copy Path, and Move Items Here directly to Finder’s context menu. Open Terminal in the selected folder or current folder; copy multiple paths as separate lines.</td>
+    <td width="36%"><strong>Finder actions, where you need them</strong><br><br>Add AirDrop, Open in Terminal, Copy Path, Move Items Here, and New Text File directly to Finder’s context menu. Open Terminal in the selected folder or current folder; copy multiple paths as separate lines.</td>
     <td width="64%" align="center"><img src="docs/images/readme/finder-context-menu.png" width="285" alt="Finder actions, where you need them"></td>
   </tr>
   <tr>
@@ -57,6 +57,8 @@ This removes only the setup dismissal record, leaving other settings, Finder dat
     <td width="64%" align="center"><img src="docs/images/readme/browser-language.png" width="580" alt="Launch browsers in eight languages"></td>
   </tr>
 </table>
+
+**New Text File:** enable it in the menu-bar menu or setup, then right-click a single ordinary folder or its background. Buckle creates an empty `.txt` file with a localized name, adds a number if the name is taken without overwriting files, and selects it in Finder. This needs the Finder extension, without extra Accessibility or automation access. Automatic rename and native Finder Undo are not provided.
 
 ## Settings
 
