@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
 ### Added
 - Optional New Text File Finder action creates and selects an empty text file in a single folder, using numbered names without overwriting existing files and rejecting replayed creation requests across restarts.
 - Optional middle-click quitting for running apps in the Dock, with synchronized menu-bar and General switches, permission status, and a menu-bar action choice saved between launches: normal quit by default, or force quit with confirmation each time and app-instance revalidation.
