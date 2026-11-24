@@ -96,7 +96,7 @@ enum FinderPathCopyCheck {
             var observedDirectories: Set<URL> = []
             let finder = BuckleFinderSync(
                 observeDirectories: { observedDirectories = $0 }, openRequest: openRequest, copyFiles: copyFiles)
-            precondition(observedDirectories.contains(URL(fileURLWithPath: "/")))
+            precondition(observedDirectories == [URL(fileURLWithPath: "/")])
             precondition(!Thread.isMainThread)
             let firstMenu = finder.makeMenu(for: .items(files), store: store)
             precondition(firstMenu.items.count == 4, "Missing Finder menu actions")

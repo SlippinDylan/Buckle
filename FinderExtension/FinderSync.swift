@@ -36,19 +36,8 @@ final class BuckleFinderSync: FIFinderSync {
         self.openRequest = openRequest
         self.copyFiles = copyFiles
         super.init()
-        var directories: Set<URL> = [URL(fileURLWithPath: "/")]
-        if let volumes = FileManager.default.mountedVolumeURLs(
-            includingResourceValuesForKeys: nil, options: .skipHiddenVolumes)
-        {
-            directories.formUnion(volumes)
-        } else {
-            logger.error("Could not enumerate mounted volumes.")
-        }
-        observeDirectories(directories)
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self, selector: #selector(volumeMounted(_:)), name: NSWorkspace.didMountNotification, object: nil)
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self, selector: #selector(volumeUnmounted(_:)), name: NSWorkspace.didUnmountNotification, object: nil)
+        // Only observe the startup volume so Finder does not replace sidebar icons for other mounted volumes.
+        observeDirectories([URL(fileURLWithPath: "/")])
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
@@ -272,16 +261,6 @@ final class BuckleFinderSync: FIFinderSync {
             alert.window.orderFrontRegardless()
             alert.runModal()
         }
-    }
-
-    @objc private func volumeMounted(_ notification: Notification) {
-        guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
-        FIFinderSyncController.default().directoryURLs.insert(url)
-    }
-
-    @objc private func volumeUnmounted(_ notification: Notification) {
-        guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
-        FIFinderSyncController.default().directoryURLs.remove(url)
     }
 }
 
